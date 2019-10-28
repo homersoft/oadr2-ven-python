@@ -1,0 +1,7 @@
+language: python
+python:
+  - "2.7"
+install:
+  - pip install -r requirements.txt
+script:
+  - pytest test/event_unittest.py test/event_b_unittest.py test/schedule_unittest.py
