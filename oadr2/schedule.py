@@ -95,7 +95,7 @@ def duration_to_delta(duration_str):
                 seconds= vals[6] ), sign
 
 
-def durations_to_dates(start,dur_list):
+def durations_to_dates(start, dur_list):
     '''
     Return a date which is the designated amount of time
     from the given start datetime.
@@ -103,13 +103,13 @@ def durations_to_dates(start,dur_list):
     @param `dur_list` a list of ical duration strings like `PT1M`
     @return a datetime which represents the start with the given duration offset
     '''
-    if not isinstance(start,datetime.datetime):
+    if not isinstance(start, datetime.datetime):
         raise ValueError('start must be a datetime object')
 
     new_dttm = start
     new_list = [start,]
 
-    for i in xrange(len(dur_list)):
+    for i in range(len(dur_list)):
         delta, sign = duration_to_delta( dur_list[i] )
         new_dttm = new_dttm + delta if sign == '+' else new_dttm - delta
         new_list.append( new_dttm )
@@ -120,7 +120,7 @@ def durations_to_dates(start,dur_list):
 def str_to_datetime(dt_str):
     fmt = '%Y-%m-%dT%H:%M:%S.%fZ' if '.' in dt_str \
             else '%Y-%m-%dT%H:%M:%SZ'
-    return datetime.datetime.strptime(dt_str,fmt)
+    return datetime.datetime.strptime(dt_str, fmt)
 
 
 def dttm_to_str(dttm, include_msec=True):

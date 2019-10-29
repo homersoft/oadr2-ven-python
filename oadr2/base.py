@@ -3,7 +3,7 @@
 __author__ = 'Benjamin N. Summerton <bsummerton@enernoc.com>'
 
 import logging, threading
-import event, control
+from . import event, control
 
 
 class BaseHandler(object):

@@ -6,7 +6,7 @@
 __author__ = 'Thom Nichols <tnichols@enernoc.com>, Benjamin N. Summerton <bsummerton@enernoc.com>'
 
 import threading, logging
-from cStringIO import StringIO
+from io import StringIO
 
 # NOTE: As stated in header, we are using two different XML libraries.
 #       The python standard XML library is needed because of SleekXMPP
@@ -20,7 +20,7 @@ from sleekxmpp.stanza.iq import Iq
 from sleekxmpp.plugins.base import base_plugin
 from sleekxmpp.exceptions import XMPPError
 
-import base, event
+from . import base, event
 
 
 
@@ -132,7 +132,7 @@ class OpenADR2(base.BaseHandler):
             logging.debug('Response Payload:\n%s\n----\n',
                     lxml_etree.tostring(response, pretty_print=True))
             self.send_reply( response, msg.from_ )
-        except Exception, ex:
+        except Exception as ex:
             logging.exception("Error processing OADR2 log request: %s", ex)
 
     
@@ -345,7 +345,7 @@ class OpenADR2Plugin(base_plugin):
             
             # And pass it to the message handler
             self.callback(msg)
-        except Exception, e:
+        except Exception as e:
             logging.exception("OADR2 XMPP parse error: %s", e)
             raise XMPPError(text=e) 
 

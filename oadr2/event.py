@@ -1,6 +1,7 @@
 # Event Handler class.
 # --------
 # Requires the python libXML wrapper "lxml" to function properly
+from oadr2 import memdb
 
 __author__ = "Thom Nichols <tnichols@enernoc.com>, Ben Summerton <bsummerton@enernoc.com>"
 
@@ -9,7 +10,7 @@ import logging
 from lxml import etree
 from lxml.builder import ElementMaker, E
 
-import schedule, database
+from . import schedule
 
 
 # Stuff for the 2.0a spec of OpenADR
@@ -62,7 +63,7 @@ NS_B = {    # If you see an 2.0a variable used here, that means that the namespa
 }
 
 # Other important constants that we need
-VALID_SIGNAL_TYPES = ('level','price','delta','setpoint')
+VALID_SIGNAL_TYPES = ('level', 'price', 'delta', 'setpoint')
 OADR_PROFILE_20A = '2.0a'
 OADR_PROFILE_20B = '2.0b'
 
@@ -86,7 +87,7 @@ class EventHandler(object):
     def __init__(self, ven_id, vtn_ids=None, market_contexts=None,
                  group_id=None, resource_id=None, party_id=None,
                  oadr_profile_level=OADR_PROFILE_20A,
-                 event_callback=None):
+                 event_callback=None, db=None):
         '''
         Class constructor
 
@@ -133,7 +134,7 @@ class EventHandler(object):
             self.oadr_profile_level = OADR_PROFILE_20A
             self.ns_map = NS_A      
 
-        self.db = database.DBHandler()
+        self.db = db or memdb.DBHandler()
 
 
     def handle_payload(self, payload):
@@ -148,21 +149,21 @@ class EventHandler(object):
         reply_events = []
         all_events = []
 
-        requestID = payload.findtext('pyld:requestID',namespaces=self.ns_map)
-        vtnID = payload.findtext('ei:vtnID',namespaces=self.ns_map)
+        requestID = payload.findtext('pyld:requestID', namespaces=self.ns_map)
+        vtnID = payload.findtext('ei:vtnID', namespaces=self.ns_map)
 
         # If we got a payload from an VTN that is not in our list, 
         # send it a 400 message and return
         if self.vtn_ids and (vtnID not in self.vtn_ids):
-            logging.warn("Unexpected VTN ID: %s, expected one of %r", vtnID, self.vtn_ids)
+            logging.warning("Unexpected VTN ID: %s, expected one of %r", vtnID, self.vtn_ids)
             return self.build_error_response( requestID, '400', 'Unknown vtnID: %s'% vtnID )
 
         updated_events={}
 
         # Loop through all of the oadr:oadrEvent 's in the payload
-        for evt in payload.iterfind('oadr:oadrEvent',namespaces=self.ns_map):
-            response_required = evt.findtext("oadr:oadrResponseRequired",namespaces=self.ns_map)
-            evt = evt.find('ei:eiEvent',namespaces=self.ns_map) # go to nested eiEvent
+        for evt in payload.iterfind('oadr:oadrEvent', namespaces=self.ns_map):
+            response_required = evt.findtext("oadr:oadrResponseRequired", namespaces=self.ns_map)
+            evt = evt.find('ei:eiEvent', namespaces=self.ns_map) # go to nested eiEvent
             e_id = get_event_id(evt, self.ns_map)
             e_mod_num = get_mod_number(evt, self.ns_map)
             e_status = get_status(evt, self.ns_map)
@@ -186,20 +187,20 @@ class EventHandler(object):
                 status = '200'
 
                 if (old_event is not None) and (old_mod_num > e_mod_num):
-                    logging.warn(
+                    logging.warning(
                             "Got a smaller modification number (%d < %d) for event %s",
                             e_mod_num, old_mod_num, e_id )
                     status = '403'
                     opt = 'optOut'
                     
                 if not self.check_target_info(evt):
-                    logging.info("Opting out of event %s - no target match",e_id)
+                    logging.info("Opting out of event %s - no target match", e_id)
                     status = '403'
                     opt = 'optOut'
 
                 valid_signals = get_signals(evt, self.ns_map)
                 if valid_signals is None:
-                    logging.info("Opting out of event %s - no simple signal",e_id)
+                    logging.info("Opting out of event %s - no simple signal", e_id)
                     opt = 'optOut'
                     status = '403'
 
@@ -209,7 +210,7 @@ class EventHandler(object):
                     opt = 'optOut'
                     status = '405'
 
-                reply_events.append((e_id,e_mod_num,requestID,opt,status))
+                reply_events.append((e_id, e_mod_num, requestID, opt, status))
 
             # We have a new event or an updated old one
             if (old_event is None) or (e_mod_num > old_mod_num):
@@ -247,9 +248,9 @@ class EventHandler(object):
                 self.event_callback(updated_events, remove_events )
 
         except Exception as ex:
-            logging.warn("Error in event callback! %s", ex)
+            logging.warning("Error in event callback! %s", ex)
 
-        self.remove_events(remove_events.keys())
+        self.remove_events(list(remove_events.keys()))
 
         # If we have any in the reply_events list, build some payloads
         logging.debug("Replying for events %r", reply_events)
@@ -304,7 +305,7 @@ class EventHandler(object):
         ei = ElementMaker(namespace=self.ns_map['ei'], nsmap=self.ns_map)
 
         def responses(events):
-            for e_id,mod_num,requestID,opt,status in events:
+            for e_id, mod_num, requestID, opt, status in events:
                 yield ei.eventResponse(
                         ei.responseCode(str(status)),
                         pyld.requestID(requestID),
@@ -322,7 +323,7 @@ class EventHandler(object):
                     ei.venID(self.ven_id) ) )
 
         logging.debug( "Created payload:\n%s", 
-                etree.tostring(payload,pretty_print=True) )
+                etree.tostring(payload, pretty_print=True) )
         return payload
 
 
@@ -349,7 +350,7 @@ class EventHandler(object):
                     ei.venID(self.ven_id) ) )
 
         logging.debug( "Error payload:\n%s", 
-                etree.tostring(payload,pretty_print=True) )
+                etree.tostring(payload, pretty_print=True) )
         return payload
 
 
@@ -394,10 +395,10 @@ class EventHandler(object):
         '''
         # Get the events, and convert their XML blobs to lxml objects
         active = self.db.get_active_events()
-        for e_id in active.iterkeys():
+        for e_id in active.keys():
             active[e_id] = etree.XML(active[e_id])
         
-        return active.itervalues()
+        return iter(active.values())
 
 
     def update_all_events(self, event_dict, vtn_id):
@@ -411,7 +412,7 @@ class EventHandler(object):
         '''
         # Format the event diciontary int a list of event records for the database
         event_list = []
-        for e_id in event_dict.iterkeys():
+        for e_id in event_dict.keys():
             mod_num = get_mod_number(event_dict[e_id], self.ns_map)
             raw_xml = etree.tostring(event_dict[e_id])
             event_list.append((vtn_id, e_id, mod_num, raw_xml))
@@ -470,7 +471,7 @@ def get_event_id(evt, ns_map=NS_A):
     Returns: an ei:eventID value
     '''
 
-    return evt.findtext("ei:eventDescriptor/ei:eventID",namespaces=ns_map)
+    return evt.findtext("ei:eventDescriptor/ei:eventID", namespaces=ns_map)
 
 
 def get_status(evt, ns_map=NS_A):
@@ -483,7 +484,7 @@ def get_status(evt, ns_map=NS_A):
     Returns: an ei:eventStatus value
     '''
 
-    return evt.findtext("ei:eventDescriptor/ei:eventStatus",namespaces=ns_map)
+    return evt.findtext("ei:eventDescriptor/ei:eventStatus", namespaces=ns_map)
 
 
 def get_mod_number(evt, ns_map=NS_A):
@@ -510,7 +511,7 @@ def get_market_context(evt, ns_map=NS_A):
 
     Returns: an emix:marketContext value
     '''
-    return evt.findtext("ei:eventDescriptor/ei:eiMarketContext/emix:marketContext",namespaces=ns_map)
+    return evt.findtext("ei:eventDescriptor/ei:eiMarketContext/emix:marketContext", namespaces=ns_map)
 
 
 def get_current_signal_value(evt, ns_map=NS_A):
@@ -554,7 +555,7 @@ def get_signals(evt, ns_map=NS_A):
         duration = interval.findtext( 'xcal:duration/xcal:duration', namespaces=ns_map )
         uid = interval.findtext('xcal:uid/xcal:text', namespaces=ns_map)
         value = interval.findtext('ei:signalPayload//ei:value', namespaces=ns_map)
-        signals.append( (duration,uid,value) )
+        signals.append( (duration, uid, value) )
 
     return signals
 
@@ -617,7 +618,7 @@ def get_group_ids(evt, ns_map=NS_A):
     Returns: A list of ei:groupID
     '''
 
-    return [e.text for e in evt.iterfind('ei:eiTarget/ei:groupID',namespaces=ns_map)]
+    return [e.text for e in evt.iterfind('ei:eiTarget/ei:groupID', namespaces=ns_map)]
 
 def get_resource_ids(evt, ns_map=NS_A):
     '''
@@ -629,7 +630,7 @@ def get_resource_ids(evt, ns_map=NS_A):
     Returns: A list of ei:resourceID
     '''
 
-    return [e.text for e in evt.iterfind('ei:eiTarget/ei:resourceID',namespaces=ns_map)]
+    return [e.text for e in evt.iterfind('ei:eiTarget/ei:resourceID', namespaces=ns_map)]
 
 
 def get_party_ids(evt, ns_map=NS_A):
@@ -642,7 +643,7 @@ def get_party_ids(evt, ns_map=NS_A):
     Returns: A list of ei:partyID
     '''
 
-    return [e.text for e in evt.iterfind('ei:eiTarget/ei:partyID',namespaces=ns_map)]
+    return [e.text for e in evt.iterfind('ei:eiTarget/ei:partyID', namespaces=ns_map)]
 
 
 def get_ven_ids(evt, ns_map=NS_A):
@@ -655,5 +656,5 @@ def get_ven_ids(evt, ns_map=NS_A):
     Returns: A list of ei:venID
     '''
 
-    return [e.text for e in evt.iterfind('ei:eiTarget/ei:venID',namespaces=ns_map)]
+    return [e.text for e in evt.iterfind('ei:eiTarget/ei:venID', namespaces=ns_map)]
 

@@ -4,11 +4,11 @@
 
 import os
 import threading, logging
-import urllib2
-import httplib
+import urllib.request, urllib.error, urllib.parse
+import http.client
 import ssl, socket
 from lxml import etree
-import base, schedule
+from . import base, schedule
 
 # HTTP parameters:
 CONTENT_TYPE = 'application/xml'
@@ -63,7 +63,7 @@ class OpenADR2(base.BaseHandler):
         '''
 
         # Call the parent's methods
-        super(OpenADR2,self).__init__(event_config, control_opts)
+        super(OpenADR2, self).__init__(event_config, control_opts)
 
         # Get the VTN's base uri set
         self.vtn_base_uri = vtn_base_uri
@@ -109,7 +109,7 @@ class OpenADR2(base.BaseHandler):
             )
 
         # This is our HTTP client:
-        self.http = urllib2.build_opener(*handlers)
+        self.http = urllib.request.build_opener(*handlers)
 
         self.poll_thread = threading.Thread(
                 name='oadr2.poll',
@@ -127,7 +127,7 @@ class OpenADR2(base.BaseHandler):
         if self.poll_thread is not None:
             self.poll_thread.join(2)        # they are daemons.
 
-        super(OpenADR2,self).exit()
+        super(OpenADR2, self).exit()
    
 
     def poll_vtn_loop(self):
@@ -139,14 +139,14 @@ class OpenADR2(base.BaseHandler):
             try:
                 self.query_vtn()
 
-            except urllib2.HTTPError as ex: # 4xx or 5xx HTTP response:
+            except urllib.error.HTTPError as ex: # 4xx or 5xx HTTP response:
                 logging.warn("HTTP error: %s\n%s", ex, ex.read())
 
-            except urllib2.URLError, ex: # network error.
+            except urllib.error.URLError as ex: # network error.
                 logging.debug("Network error: %s", ex)
 
-            except Exception, ex:
-                logging.exception("Error in OADR2 poll thread: %s",ex)
+            except Exception as ex:
+                logging.exception("Error in OADR2 poll thread: %s", ex)
 
             self._exit.wait(self.vtn_poll_interval)
         logging.info(" +++++++++++++++ OADR2 polling thread has exited." )
@@ -165,7 +165,7 @@ class OpenADR2(base.BaseHandler):
         payload = self.event_handler.build_request_payload()
 
         # Make the request
-        req = urllib2.Request(event_uri, etree.tostring(payload), dict(DEFAULT_HEADERS))
+        req = urllib.request.Request(event_uri, etree.tostring(payload), dict(DEFAULT_HEADERS))
         logging.debug( 'Request to: %s\n%s\n----', req.get_full_url(), 
                 etree.tostring(payload, pretty_print=True) )
 
@@ -209,15 +209,15 @@ class OpenADR2(base.BaseHandler):
         uri -- The URI (of the VTN) where the response should be sent
         '''
 
-        request = urllib2.Request(uri, etree.tostring(payload), dict(DEFAULT_HEADERS))
-        resp = self.http.open(request,None,REQUEST_TIMEOUT)
+        request = urllib.request.Request(uri, etree.tostring(payload), dict(DEFAULT_HEADERS))
+        resp = self.http.open(request, None, REQUEST_TIMEOUT)
         logging.debug("EiEvent response: %s", resp.getcode())
 
 
 
 
 # http://stackoverflow.com/questions/1875052/using-paired-certificates-with-urllib2
-class HTTPSClientAuthHandler(urllib2.HTTPSHandler):
+class HTTPSClientAuthHandler(urllib.request.HTTPSHandler):
     '''
     Allows sending a client certificate with the HTTPS connection.
     This version also validates the peer (server) certificate.
@@ -234,7 +234,7 @@ class HTTPSClientAuthHandler(urllib2.HTTPSHandler):
         ciphers -- What encryption method
         '''
 
-        urllib2.HTTPSHandler.__init__(self)
+        urllib.request.HTTPSHandler.__init__(self)
         self.key = key
         self.cert = cert
         self.ca_certs = ca_certs
@@ -275,7 +275,7 @@ class HTTPSClientAuthHandler(urllib2.HTTPSHandler):
 
 
 
-class HTTPSConnection(httplib.HTTPSConnection):
+class HTTPSConnection(http.client.HTTPSConnection):
     '''
     Overridden to allow peer certificate validation, configuration
     of SSL/ TLS version and cipher selection.  See:
@@ -291,11 +291,11 @@ class HTTPSConnection(httplib.HTTPSConnection):
         kwargs -- See httplib.HTTPSConnection's documentation
         '''
 
-        self.ciphers = kwargs.pop('ciphers',None)
-        self.ca_certs = kwargs.pop('ca_certs',None)
-        self.ssl_version = kwargs.pop('ssl_version',ssl.PROTOCOL_SSLv23)
+        self.ciphers = kwargs.pop('ciphers', None)
+        self.ca_certs = kwargs.pop('ca_certs', None)
+        self.ssl_version = kwargs.pop('ssl_version', ssl.PROTOCOL_SSLv23)
 
-        httplib.HTTPSConnection.__init__(self,host,**kwargs)
+        http.client.HTTPSConnection.__init__(self,host,**kwargs)
 
     def connect(self):
         '''

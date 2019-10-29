@@ -2,20 +2,23 @@
 __author__ = 'Benjamin N. Summerton <bsummerton@enernoc.com>'
 
 # NOTE: Make sure to run this file from the root directory of the project
-import sys,os
+import os
+import sys
+
 sys.path.insert( 0, os.getcwd() )
 xml_dir = os.path.join( os.path.dirname(__file__), 'xml_files')
 
 from oadr2 import event
+
 from lxml import etree
 import unittest
+from test.util import read_xml
 
 # Some constants
 SCHEMA_DIR = os.path.join(xml_dir, '2.0a_schema/')
 SAMPLE_DIR = os.path.join(xml_dir, '2.0a_spec/')
 VEN_ID = 'ven_py'
 STATUS_CODES = [200, 403, 405]
-
 
 
 class EventHandlerTest(unittest.TestCase):
@@ -26,14 +29,14 @@ class EventHandlerTest(unittest.TestCase):
         # Some configureation variables, by default, this is for the a handler
         self.config = {'vtn_ids': 'vtn_1,vtn_2,vtn_3,TH_VTN',
                        'ven_id': VEN_ID}
-        oadr_schema_file = open(os.path.join(SCHEMA_DIR, 'oadr_20a.xsd'))        # OpenADR
-        oadr_schema_doc = etree.parse(oadr_schema_file)
-        self.oadr_schema = etree.XMLSchema(oadr_schema_doc)
+        with open(os.path.join(SCHEMA_DIR, 'oadr_20a.xsd')) as oadr_schema_file:
+            oadr_schema_doc = etree.parse(oadr_schema_file)
+            self.oadr_schema = etree.XMLSchema(oadr_schema_doc)
         self.event_handler = event.EventHandler(**self.config)
         
         # Make things a little nicer for us to see
         print('')
-        print(40 * '=')
+        print((40 * '='))
 
 
     def tearDown(self):
@@ -56,7 +59,7 @@ class EventHandlerTest(unittest.TestCase):
 
         # Check the VEN ID to make sure it's ours
         print('Checking VEN ID')
-        ven_id = payload.findtext('pyld:eiRequestEvent/ei:venID',namespaces=self.event_handler.ns_map)
+        ven_id = payload.findtext('pyld:eiRequestEvent/ei:venID', namespaces=self.event_handler.ns_map)
         self.assertEqual(ven_id, VEN_ID, msg='VEN ID for genrated payload did not match')
         print('OK')
         print('build_request_payload() OK')
@@ -129,7 +132,7 @@ class EventHandlerTest(unittest.TestCase):
             opt = res.findtext('ei:optType', namespaces=self.event_handler.ns_map)
             
             # Run the assertion tests
-            print('Event: ' + events[i][0])
+            print(('Event: ' + events[i][0]))
             self.assertEqual(events[i][0], e_id, msg='Event ID is not the same; desired=%s, got=%s'%(events[i][0], e_id))
             self.assertEqual(events[i][1], mod_num, msg='Mod Number is not the same; desired=%s, got=%s'%(events[i][1], mod_num))
             self.assertEqual(events[i][2], res_id, msg='Request ID does not match up; desired=%s, got=%s'%(events[i][2], res_id))
@@ -154,8 +157,7 @@ class EventHandlerTest(unittest.TestCase):
 
         # Load up each individual file
         for filename in files:
-            xml_file = open(os.path.join(SAMPLE_DIR, filename))
-            xml_doc = etree.XML(xml_file.read())
+            xml_doc = read_xml(os.path.join(SAMPLE_DIR, filename))
 #            print('XML for "%s":'%(filename))
 #            print(etree.tostring(xml_doc, pretty_print=True))   # Make sure it read in correctly
             print('Validating')
@@ -180,7 +182,7 @@ class EventHandlerTest(unittest.TestCase):
                 print('Payload was not generated')
 
             # Do this at the end of the loop
-            print('+' * 4)
+            print(('+' * 4))
 
         print('handle_payload() OK')
 
@@ -199,10 +201,9 @@ class EventHandlerTest(unittest.TestCase):
 
         # Load up each file
         for filename in files:
-            xml_file = open(os.path.join(SAMPLE_DIR, filename))
-            xml_doc = etree.XML(xml_file.read())
+            xml_doc = read_xml(os.path.join(SAMPLE_DIR, filename))
             self.assertTrue(self.oadr_schema.validate(xml_doc), msg='Validation failed for "%s"'%(filename))
-            print('"%s" is valid; Testing it against the payload handler.'%(filename))
+            print(('"%s" is valid; Testing it against the payload handler.'%(filename)))
 
             # Send it the message and generate a payload
             payload = self.event_handler.handle_payload(xml_doc)
@@ -219,9 +220,9 @@ class EventHandlerTest(unittest.TestCase):
 #                print('Return payload for "' + filename + '" is valid.')
 #                print(etree.tostring(payload, pretty_print=True))
             else:
-                print('No return payload generated for "%s"'%(filename))
+                print(('No return payload generated for "%s"'%(filename)))
 
-            print ('+' * 4)
+            print(('+' * 4))
             i += 1
 
         print('test_batch_a() OK')
@@ -243,10 +244,9 @@ class EventHandlerTest(unittest.TestCase):
 
         # Load up each file
         for filename in files:
-            xml_file = open(os.path.join(SAMPLE_DIR, filename))
-            xml_doc = etree.XML(xml_file.read())
+            xml_doc = read_xml(os.path.join(SAMPLE_DIR, filename))
             self.assertTrue(self.oadr_schema.validate(xml_doc), msg='Validation failed for "%s"'%(filename))
-            print('"%s" is valid; Testing it against the payload handler.'%(filename))
+            print(('"%s" is valid; Testing it against the payload handler.'%(filename)))
 
             # Send it the message and generate a payload
             payload = self.event_handler.handle_payload(xml_doc)
@@ -267,11 +267,11 @@ class EventHandlerTest(unittest.TestCase):
             # Check the payload
             if payload is not None:
                 self.assertTrue(self.oadr_schema.validate(payload), msg='Return payload failed for %s'%(filename))
-                print('Return payload for "%s" is valid.'%(filename))
+                print(('Return payload for "%s" is valid.'%(filename)))
             else:
-                print('No return payload generated for "%s"'%(filename))
+                print(('No return payload generated for "%s"'%(filename)))
 
-            print ('+' * 4)
+            print(('+' * 4))
             i += 1
         
         print('test_batch_b() OK')
@@ -300,10 +300,9 @@ class EventHandlerTest(unittest.TestCase):
         i = 1
         for i in range(1, 9):
             # Open the file and validate the XML
-            xml_file = open(os.path.join(SAMPLE_DIR, 'batch_c_%i.xml'%(i)))
-            xml_doc = etree.XML(xml_file.read())
+            xml_doc = read_xml(os.path.join(SAMPLE_DIR, 'batch_c_%i.xml' % (i)))
             self.assertTrue(self.oadr_schema.validate(xml_doc), msg='Validation falied for "batch_c_%i.xml"'%(i))
-            print('"batch_c_%i.xml" is valid.'%(i))
+            print(('"batch_c_%i.xml" is valid.'%(i)))
 
             # Send it to the handler
             payload = self.event_handler.handle_payload(xml_doc)
@@ -324,9 +323,9 @@ class EventHandlerTest(unittest.TestCase):
                     print('Status Code and Opt Type are OK')
                     
             else:
-                print('Payload for "batch_c_%i.xml"'%(i))
+                print(('Payload for "batch_c_%i.xml"'%(i)))
 
-            print('+' * 4)
+            print(('+' * 4))
 
 
         print('test_batch_d() OK')

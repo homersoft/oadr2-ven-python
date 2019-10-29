@@ -1,4 +1,4 @@
-import sys,os
+import sys, os
 sys.path.insert( 0, os.getcwd() )
 
 from oadr2 import schedule
@@ -10,24 +10,24 @@ class ScheduleTest(unittest.TestCase):
 
     def test_parse_duration(self):
 
-        self.assertEqual( ('+',0,0,0,0,3,0), schedule.parse_duration('PT3M') )
-        self.assertEqual( ('+',0,0,0,0,3,0), schedule.parse_duration('+PT3M') )
-        self.assertEqual( ('+',1,0,0,0,3,0), schedule.parse_duration('+P1YT3M') )
-        self.assertEqual( ('+',0,0,0,0,3,0), schedule.parse_duration('P0YT3M') )
-        self.assertEqual( ('+',0,0,0,0,0,30), schedule.parse_duration('P0Y0M0DT0H0M30S') )
-        self.assertEqual( ('+',0,0,12,5,15,23), schedule.parse_duration('P12DT5H15M23S') )
-        self.assertEqual( ('-',0,0,0,2,0,0), schedule.parse_duration('-PT2H') )
-        self.assertEqual( ('+',0,0,12,0,0,0), schedule.parse_duration('P12D') )
+        self.assertEqual( ('+', 0, 0, 0, 0, 3, 0), schedule.parse_duration('PT3M') )
+        self.assertEqual( ('+', 0, 0, 0, 0, 3, 0), schedule.parse_duration('+PT3M') )
+        self.assertEqual( ('+', 1, 0, 0, 0, 3, 0), schedule.parse_duration('+P1YT3M') )
+        self.assertEqual( ('+', 0, 0, 0, 0, 3, 0), schedule.parse_duration('P0YT3M') )
+        self.assertEqual( ('+', 0, 0, 0, 0, 0, 30), schedule.parse_duration('P0Y0M0DT0H0M30S') )
+        self.assertEqual( ('+', 0, 0, 12, 5, 15, 23), schedule.parse_duration('P12DT5H15M23S') )
+        self.assertEqual( ('-', 0, 0, 0, 2, 0, 0), schedule.parse_duration('-PT2H') )
+        self.assertEqual( ('+', 0, 0, 12, 0, 0, 0), schedule.parse_duration('P12D') )
 
 
     def test_parse_duration_to_delta(self):
 
         self.assertEqual( 
-                (relativedelta(minutes=3),'+'), 
+                (relativedelta(minutes=3), '+'), 
                 schedule.duration_to_delta('PT3M') )
 
         self.assertEqual( 
-                (relativedelta(minutes=3),'+'), 
+                (relativedelta(minutes=3), '+'), 
                 schedule.duration_to_delta('+PT3M') )
 
         self.assertEqual( 
@@ -58,19 +58,19 @@ class ScheduleTest(unittest.TestCase):
     def test_str_to_dttm(self):
 
         self.assertEqual(
-                dt.datetime(2013,5,12,8,33,50),
+                dt.datetime(2013, 5, 12, 8, 33, 50),
                 schedule.str_to_datetime('2013-05-12T08:33:50Z') )
 
 
     def test_dttm_to_str(self):
 
         self.assertEqual( '2013-05-12T08:33:50Z',
-                schedule.dttm_to_str(dt.datetime(2013,5,12,8,33,50), include_msec=False) )
+                schedule.dttm_to_str(dt.datetime(2013, 5, 12, 8, 33, 50), include_msec=False) )
 
 
     def test_random_offset(self):
 
-        start = dt.datetime(2013,5,12,8,33,50)
+        start = dt.datetime(2013, 5, 12, 8, 33, 50)
 
         dttm = schedule.random_offset(
                 start, None, None )
@@ -80,54 +80,54 @@ class ScheduleTest(unittest.TestCase):
         dttm = schedule.random_offset(
                 start, 'PT3M', None )
 
-        print("new dttm: %s" % dttm)
-        min_dttm = dt.datetime(2013,5,12,8,30,50)
+        print(("new dttm: %s" % dttm))
+        min_dttm = dt.datetime(2013, 5, 12, 8, 30, 50)
         self.assertTrue( dttm >= min_dttm and dttm < start )
 
         dttm2 = schedule.random_offset(
                 start, 'PT1H', 'PT3D12M' )
 
-        print("new dttm: %s" % dttm2)
+        print(("new dttm: %s" % dttm2))
         self.assertNotEqual( dttm, dttm2 )
 
-        min_dttm = dt.datetime(2013,5,12,7,33,50)
-        max_dttm = dt.datetime(2013,5,15,7,45,50)
+        min_dttm = dt.datetime(2013, 5, 12, 7, 33, 50)
+        max_dttm = dt.datetime(2013, 5, 15, 7, 45, 50)
         self.assertTrue( dttm >= min_dttm and dttm < max_dttm )
 
 
     def test_choose_interval(self):
 
-        start = dt.datetime(2013,5,12,8,30,50)
-        intervals = ('PT5M','PT30S','PT12H')
+        start = dt.datetime(2013, 5, 12, 8, 30, 50)
+        intervals = ('PT5M', 'PT30S', 'PT12H')
         
         # before event start
         self.assertEqual(-1, schedule.choose_interval(start, intervals, 
-            dt.datetime(2013,5,12,8,22,0) ) )
+            dt.datetime(2013, 5, 12, 8, 22, 0) ) )
         
         # first interval (5 minutes)
         self.assertEqual(0, schedule.choose_interval(start, intervals, 
-            dt.datetime(2013,5,12,8,30,50) ) )
+            dt.datetime(2013, 5, 12, 8, 30, 50) ) )
 
         self.assertEqual(0, schedule.choose_interval(start, intervals, 
-            dt.datetime(2013,5,12,8,30,51) ) )
+            dt.datetime(2013, 5, 12, 8, 30, 51) ) )
 
         # second interval (30 seconds)
         self.assertEqual(1, schedule.choose_interval(start, intervals, 
-            dt.datetime(2013,5,12,8,35,50) ) )
+            dt.datetime(2013, 5, 12, 8, 35, 50) ) )
 
         self.assertEqual(1, schedule.choose_interval(start, intervals, 
-            dt.datetime(2013,5,12,8,36,19) ) )
+            dt.datetime(2013, 5, 12, 8, 36, 19) ) )
 
         # third interval (12 hours)
         self.assertEqual(2, schedule.choose_interval(start, intervals, 
-            dt.datetime(2013,5,12,8,36,20) ) )
+            dt.datetime(2013, 5, 12, 8, 36, 20) ) )
 
         self.assertEqual(2, schedule.choose_interval(start, intervals, 
-            dt.datetime(2013,5,12,20,36,19) ) )
+            dt.datetime(2013, 5, 12, 20, 36, 19) ) )
 
         # after the last interval
         self.assertEqual(None, schedule.choose_interval(start, intervals, 
-            dt.datetime(2013,5,12,20,36,20) ) )
+            dt.datetime(2013, 5, 12, 20, 36, 20) ) )
 
 
 
