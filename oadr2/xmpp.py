@@ -5,23 +5,21 @@
 
 __author__ = 'Thom Nichols <tnichols@enernoc.com>, Benjamin N. Summerton <bsummerton@enernoc.com>'
 
-import threading, logging
+import logging
 from io import StringIO
-
-# NOTE: As stated in header, we are using two different XML libraries.
-#       The python standard XML library is needed because of SleekXMPP
-#       Yet we try to use the "lxml," module as much as we can.
-from lxml import etree as lxml_etree
 from xml.etree import cElementTree as std_ElementTree
 from xml.etree.cElementTree import XML as std_XML
 
 import sleekxmpp
-from sleekxmpp.stanza.iq import Iq
-from sleekxmpp.plugins.base import base_plugin
+# NOTE: As stated in header, we are using two different XML libraries.
+#       The python standard XML library is needed because of SleekXMPP
+#       Yet we try to use the "lxml," module as much as we can.
+from lxml import etree as lxml_etree
 from sleekxmpp.exceptions import XMPPError
+from sleekxmpp.plugins.base import base_plugin
+from sleekxmpp.stanza.iq import Iq
 
-from . import base, event
-
+from oadr2 import base, event
 
 
 class OpenADR2(base.BaseHandler):
@@ -62,7 +60,6 @@ class OpenADR2(base.BaseHandler):
 
         self._init_client(start_thread=True)
 
-
     def _init_client(self, start_thread):
         '''
         Setup/Start the client.  The base class has a function of the same name,
@@ -77,22 +74,21 @@ class OpenADR2(base.BaseHandler):
         self.xmpp_client.add_event_handler('session_start', self.xmpp_session_start)
         self.xmpp_client.add_event_handler('message', self.xmpp_message)
         self.xmpp_client.register_plugin('xep_0030')
-        self.xmpp_client.register_plugin('xep_0199', 
-                pconfig={'keepalive': True, 'frequency': 240})
-        self.xmpp_client.register_plugin('OpenADR2Plugin', 
-                module='oadr2.xmpp',
-                pconfig={'callback': self._handle_oadr_payload})
+        self.xmpp_client.register_plugin('xep_0199',
+                                         pconfig={'keepalive': True, 'frequency': 240})
+        self.xmpp_client.register_plugin('OpenADR2Plugin',
+                                         module='oadr2.xmpp',
+                                         pconfig={'callback': self._handle_oadr_payload})
 
         # Setup system information disco
         self.xmpp_client['xep_0030'].add_identity(
-                category='system', 
-                itype='version', 
-                name='OpenADR2 Python VEN')
-       
+            category='system',
+            itype='version',
+            name='OpenADR2 Python VEN')
+
         # Connect and thread the client
         self.xmpp_client.connect((self.server_addr, self.server_port))
         self.xmpp_client.process(threaded=True)
-
 
     def xmpp_session_start(self, event):
         '''
@@ -106,7 +102,6 @@ class OpenADR2(base.BaseHandler):
         logging.info('XMPP session has started.')
         self.xmpp_client.sendPresence()
 
-
     def xmpp_message(self, msg):
         '''
         'message' event handler for our XMPP Client.
@@ -118,7 +113,6 @@ class OpenADR2(base.BaseHandler):
 
         logging.info(msg)
 
-        
     def _handle_oadr_payload(self, msg):
         '''
         Handle OpenADR2 payloads
@@ -130,12 +124,11 @@ class OpenADR2(base.BaseHandler):
         try:
             response = self.event_handler.handle_payload(msg.payload)
             logging.debug('Response Payload:\n%s\n----\n',
-                    lxml_etree.tostring(response, pretty_print=True))
-            self.send_reply( response, msg.from_ )
+                          lxml_etree.tostring(response, pretty_print=True))
+            self.send_reply(response, msg.from_)
         except Exception as ex:
             logging.exception("Error processing OADR2 log request: %s", ex)
 
-    
     def send_reply(self, payload, to):
         '''
         Make and OADR2 Message and sends it to someone (if they are online)
@@ -153,9 +146,8 @@ class OpenADR2(base.BaseHandler):
         # Build the IQ reply and send it
         iq_reply = Iq(self.xmpp_client, sto=to, stype='set')
         # Change the lxml object to a standard Python XML object
-        iq_reply.set_payload(std_XML(lxml_etree.tostring(payload))) 
+        iq_reply.set_payload(std_XML(lxml_etree.tostring(payload)))
         self.xmpp_client.send(iq_reply)
-
 
     def exit(self):
         '''
@@ -173,8 +165,7 @@ class OpenADR2(base.BaseHandler):
         self.xmpp_client = None
         logging.info('XMPP Client shutdown.')
 
-        base.BaseHandler.exit(self)     # Stop the parent threads
-
+        base.BaseHandler.exit(self)  # Stop the parent threads
 
 
 class OADR2Message(object):
@@ -192,10 +183,10 @@ class OADR2Message(object):
     ns_map -- The namespaces for the corresponding oadr_profile_level
     '''
 
-    def __init__(self, payload=None, 
-            id_=None, stanza_type='iq', iq_type='result', 
-            from_=None, to=None, 
-            oadr_profile_level=event.OADR_PROFILE_20A):
+    def __init__(self, payload=None,
+                 id_=None, stanza_type='iq', iq_type='result',
+                 from_=None, to=None,
+                 oadr_profile_level=event.OADR_PROFILE_20A):
         '''
         Initizlise the message
 
@@ -216,16 +207,15 @@ class OADR2Message(object):
         self.stanza_type = stanza_type
         self.iq_type = iq_type
         self.oadr_profile_level = oadr_profile_level
-        
+
         # Set the namespace dependant upon the profile level
         if self.oadr_profile_level == event.OADR_PROFILE_20A:
             self.ns_map = event.NS_A
         elif self.oadr_profile_level == event.OADR_PROFILE_20B:
             self.ns_map = event.NS_B
         else:
-            self.oadr_profile_level = OADR_PROFILE_20A     # Default/Safety, make it the 2.0a spec 
-            self.ns_map = event.NS_A      
-
+            self.oadr_profile_level = OADR_PROFILE_20A  # Default/Safety, make it the 2.0a spec
+            self.ns_map = event.NS_A
 
     def get_events(self):
         '''
@@ -234,8 +224,7 @@ class OADR2Message(object):
         Returns: All of the events as lxml objects
         '''
 
-        return self.payload.findall("%{(oadr)s}oadrEvent/{%(ei)s}eiEvent"%self.ns_map)
-
+        return self.payload.findall("%{(oadr)s}oadrEvent/{%(ei)s}eiEvent" % self.ns_map)
 
     def get_status(self, event):
         '''
@@ -246,8 +235,7 @@ class OADR2Message(object):
         Returns: The status of the event as an lxml object
         '''
 
-        return event.findtext("{%(ei)s}eventDescriptor/{%(ei)s}eventStatus"%self.ns_map)
-
+        return event.findtext("{%(ei)s}eventDescriptor/{%(ei)s}eventStatus" % self.ns_map)
 
     def get_evt_id(self, event):
         '''
@@ -258,8 +246,7 @@ class OADR2Message(object):
         Returns: An lxml object.
         '''
 
-        return event.findtext("{%(ei)s}eventDescriptor/{%(ei)s}eventID"%self.ns_map)
-
+        return event.findtext("{%(ei)s}eventDescriptor/{%(ei)s}eventID" % self.ns_map)
 
     def get_mod_num(self, event):
         '''
@@ -270,8 +257,7 @@ class OADR2Message(object):
         Returns: An lxml object.
         '''
 
-        return event.findtext("{%(ei)s}eventDescriptor/{%(ei)s}modificationNumber"%self.ns_map)
-
+        return event.findtext("{%(ei)s}eventDescriptor/{%(ei)s}modificationNumber" % self.ns_map)
 
     def get_current_signal_level(self, event):
         '''
@@ -283,19 +269,18 @@ class OADR2Message(object):
         '''
 
         return event.findtext(('{%(ei)s}eiEventSignals/{%(ei)s}eiEventSignal/' + \
-                '{%(ei)s}currentValue/{%(ei)s}payloadFloat/{%(ei)s}value')%self.ns_map)
+                               '{%(ei)s}currentValue/{%(ei)s}payloadFloat/{%(ei)s}value') % self.ns_map)
 
     # Get the message's payload as XML
     # Return: An XML String of the payload.  Does not include IQ tags
     def to_xml(self):
         data = []
         buffer = StringIO()
-        if self.payload is not None: 
+        if self.payload is not None:
             buffer.write(lxml_etree.tostring(self.payload))
             data.append(buffer.getvalue())
 
         return data
-
 
 
 class OpenADR2Plugin(base_plugin):
@@ -308,7 +293,6 @@ class OpenADR2Plugin(base_plugin):
     callback -- What function do we want to handle our messages
     '''
 
-
     # Called when initialize the plugin, not the same as __init__
     def plugin_init(self):
         '''
@@ -318,10 +302,9 @@ class OpenADR2Plugin(base_plugin):
         self.xep = 'OADR2'
         self.description = 'OpenADR 2.0 XMPP Plugin'
         self.xmpp.add_handler(
-                "<iq type='set'><oadrDistributeEvent xmlns='%s' /></iq>" % event.OADR_XMLNS_A,
-                self._handle_iq )
+            "<iq type='set'><oadrDistributeEvent xmlns='%s' /></iq>" % event.OADR_XMLNS_A,
+            self._handle_iq)
         self.callback = self.config.get('callback')
-
 
     def _handle_iq(self, iq):
         '''
@@ -332,20 +315,19 @@ class OpenADR2Plugin(base_plugin):
         '''
 
         logging.debug('OpenADR2 payload [from=%s, to=%s]',
-                (iq.get('from'), iq.get('to')))
+                      (iq.get('from'), iq.get('to')))
         try:
             # Convert a "Standard Python Library XML object," to one from lxml
             payload_element = lxml_etree.XML(std_ElementTree.tostring(iq[0]))
             msg = OADR2Message(
-                iq_type = iq.get('type'),
-                id_ = iq.get('id'), 
-                from_ = iq.get('from'),
-                payload = payload_element
+                iq_type=iq.get('type'),
+                id_=iq.get('id'),
+                from_=iq.get('from'),
+                payload=payload_element
             )
-            
+
             # And pass it to the message handler
             self.callback(msg)
         except Exception as e:
             logging.exception("OADR2 XMPP parse error: %s", e)
-            raise XMPPError(text=e) 
-
+            raise XMPPError(text=e)

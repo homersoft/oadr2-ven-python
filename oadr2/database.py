@@ -3,7 +3,6 @@
 import logging
 import sqlite3
 
-
 DEFAULT_DB_PATH = 'oadr2.db'
 
 
@@ -11,7 +10,6 @@ class DBHandler(object):
     # Member varialbes:
     # --------
     # db_path
-
 
     # The following is a list of which functions relate to which class/handler/module.
     # --------
@@ -22,20 +20,18 @@ class DBHandler(object):
     #   get_event()
     #   remove_events()
 
-    
     # Intilize the handler
     #
     # db_path - Path to where the database is located
     def __init__(self, db_path=DEFAULT_DB_PATH):
         self.db_path = db_path
         self.init_database()
-        
 
     # Builds the databse, only if it doesn't already exist
     # with the tables we want in it.
     def init_database(self):
         if self.db_path is None or '':
-            raise ValueError( "Database path cannot be empty" )
+            raise ValueError("Database path cannot be empty")
 
         conn = sqlite3.connect(self.db_path)
         c = conn.cursor()
@@ -43,8 +39,8 @@ class DBHandler(object):
         c.execute("pragma table_info('event')")
         if c.fetchone() is not None:
             logging.debug('Database `%s` is setup.', self.db_path)
-            return # table exists.
-    
+            return  # table exists.
+
         try:
             # NOTE timestamps are SECONDS as a float, not milliseconds.
             # see: http://wiki.python.org/moin/WorkingWithTime
@@ -62,19 +58,17 @@ class DBHandler(object):
                     vtn_id, event_id
                 );
             ''')
-    
+
             conn.commit()
-            logging.debug( "Created tables for database %s", self.db_path)
+            logging.debug("Created tables for database %s", self.db_path)
         except:
-            logging.exception( "Error creating tables for database %s", self.db_path)
+            logging.exception("Error creating tables for database %s", self.db_path)
             conn.rollback()
         finally:
             c.close()
             conn.close()
 
-
-
-    ### EventHandler related functions ###
+    # === EventHandler related functions ===
 
     # Gets the actives events for us from the database
     #
@@ -83,7 +77,7 @@ class DBHandler(object):
     def get_active_events(self):
         conn = sqlite3.connect(self.db_path)
         c = conn.cursor()
-    
+
         try:
             c.execute('SELECT event_id, raw_xml FROM event')
 
@@ -96,7 +90,6 @@ class DBHandler(object):
             c.close()
             conn.close()
 
-        
     # Clears our the current event table and shoves in new ones
     #
     # records - A list of tuples with the folowing format:
@@ -104,7 +97,7 @@ class DBHandler(object):
     def update_all_events(self, records):
         conn = sqlite3.connect(self.db_path)
         c = conn.cursor()
-    
+
         try:
             # Clear out the event table
             c.execute('DELETE FROM event')
@@ -123,7 +116,6 @@ class DBHandler(object):
         finally:
             c.close()
             conn.close()
-
 
     # Updates an existing event, or inserts a new one
     #
@@ -150,7 +142,6 @@ class DBHandler(object):
             c.close()
             conn.close()
 
-    
     # Gets an event for us
     #
     # event_id - ID of event
@@ -158,7 +149,7 @@ class DBHandler(object):
     def get_event(self, event_id):
         conn = sqlite3.connect(self.db_path)
         c = conn.cursor()
-    
+
         try:
             # Run the SELECT and see if we got a result
             c.execute('SELECT raw_xml FROM event WHERE event_id=?', (event_id,))
@@ -171,7 +162,6 @@ class DBHandler(object):
         finally:
             c.close()
             conn.close()
-
 
     # Remove a list of events
     #
@@ -187,10 +177,10 @@ class DBHandler(object):
         # Convert them to tuples
         for i in range(len(event_ids)):
             event_ids[i] = (event_ids[i],)
-   
+
         # Delete all of the events
         try:
-            c.executemany('DELETE FROM event WHERE event_id=?', event_ids) 
+            c.executemany('DELETE FROM event WHERE event_id=?', event_ids)
             logging.debug('Removed events from database.')
             conn.commit()
             return c.rowcount
@@ -203,5 +193,3 @@ class DBHandler(object):
         finally:
             c.close()
             conn.close()
-
-

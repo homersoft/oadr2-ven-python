@@ -8,58 +8,57 @@ __author__ = "Thom Nichols <tnichols@enernoc.com>, Ben Summerton <bsummerton@ene
 import uuid
 import logging
 from lxml import etree
-from lxml.builder import ElementMaker, E
+from lxml.builder import ElementMaker
 
-from . import schedule
-
+from oadr2 import schedule
 
 # Stuff for the 2.0a spec of OpenADR
 OADR_XMLNS_A = 'http://openadr.org/oadr-2.0a/2012/07'
 PYLD_XMLNS_A = 'http://docs.oasis-open.org/ns/energyinterop/201110/payloads'
-EI_XMLNS_A   = 'http://docs.oasis-open.org/ns/energyinterop/201110'
+EI_XMLNS_A = 'http://docs.oasis-open.org/ns/energyinterop/201110'
 EMIX_XMLNS_A = 'http://docs.oasis-open.org/ns/emix/2011/06'
 XCAL_XMLNS_A = 'urn:ietf:params:xml:ns:icalendar-2.0'
 STRM_XMLNS_A = 'urn:ietf:params:xml:ns:icalendar-2.0:stream'
 NS_A = {
-    'oadr' : OADR_XMLNS_A,
-    'pyld' : PYLD_XMLNS_A,
-    'ei'   : EI_XMLNS_A,
-    'emix' : EMIX_XMLNS_A,
-    'xcal' : XCAL_XMLNS_A,
-    'strm' : STRM_XMLNS_A
+    'oadr': OADR_XMLNS_A,
+    'pyld': PYLD_XMLNS_A,
+    'ei': EI_XMLNS_A,
+    'emix': EMIX_XMLNS_A,
+    'xcal': XCAL_XMLNS_A,
+    'strm': STRM_XMLNS_A
 }
 
 # Stuff for the 2.0b spec of OpenADR
-OADR_XMLNS_B          = 'http://openadr.org/oadr-2.0b/2012/07'
-DSIG11_XMLNS_B        = 'http://www.w3.org/2009/xmldsig11#'
-DS_XMLNS_B            = 'http://www.w3.org/2000/09/xmldsig#'
+OADR_XMLNS_B = 'http://openadr.org/oadr-2.0b/2012/07'
+DSIG11_XMLNS_B = 'http://www.w3.org/2009/xmldsig11#'
+DS_XMLNS_B = 'http://www.w3.org/2000/09/xmldsig#'
 CLM5ISO42173A_XMLNS_B = 'urn:un:unece:uncefact:codelist:standard:5:ISO42173A:2010-04-07'
-SCALE_XMLNS_B         = 'http://docs.oasis-open.org/ns/emix/2011/06/siscale'
-POWER_XMLNS_B         = 'http://docs.oasis-open.org/ns/emix/2011/06/power'
-GB_XMLNS_B            = 'http://naesb.org/espi'
-ATOM_XMLNS_B          = 'http://www.w3.org/2005/Atom'
-CCTS_XMLNS_B          = 'urn:un:unece:uncefact:documentation:standard:CoreComponentsTechnicalSpecification:2'
-GML_XMLNS_B           = 'http://www.opengis.net/gml/3.2'
-GMLSF_XMLNS_B         = 'http://www.opengis.net/gmlsf/2.0'
-XSI_XMLNS_B           = 'http://www.w3.org/2001/XMLSchema-instance'
-NS_B = {    # If you see an 2.0a variable used here, that means that the namespace is the same
-    'oadr'   : OADR_XMLNS_B,
-    'pyld'   : PYLD_XMLNS_A,
-    'ei'     : EI_XMLNS_A,
-    'emix'   : EMIX_XMLNS_A,
-    'xcal'   : XCAL_XMLNS_A,
-    'strm'   : STRM_XMLNS_A,
-    'dsig11' : DSIG11_XMLNS_B,
-    'ds'     : DS_XMLNS_B,
-    'clm'    : CLM5ISO42173A_XMLNS_B,
-    'scale'  : SCALE_XMLNS_B,
-    'power'  : POWER_XMLNS_B,
-    'gb'     : GB_XMLNS_B,
-    'atom'   : ATOM_XMLNS_B,
-    'ccts'   : CCTS_XMLNS_B,
-    'gml'    : GML_XMLNS_B,
-    'gmlsf'  : GMLSF_XMLNS_B,
-    'xsi'    : XSI_XMLNS_B
+SCALE_XMLNS_B = 'http://docs.oasis-open.org/ns/emix/2011/06/siscale'
+POWER_XMLNS_B = 'http://docs.oasis-open.org/ns/emix/2011/06/power'
+GB_XMLNS_B = 'http://naesb.org/espi'
+ATOM_XMLNS_B = 'http://www.w3.org/2005/Atom'
+CCTS_XMLNS_B = 'urn:un:unece:uncefact:documentation:standard:CoreComponentsTechnicalSpecification:2'
+GML_XMLNS_B = 'http://www.opengis.net/gml/3.2'
+GMLSF_XMLNS_B = 'http://www.opengis.net/gmlsf/2.0'
+XSI_XMLNS_B = 'http://www.w3.org/2001/XMLSchema-instance'
+NS_B = {  # If you see an 2.0a variable used here, that means that the namespace is the same
+    'oadr': OADR_XMLNS_B,
+    'pyld': PYLD_XMLNS_A,
+    'ei': EI_XMLNS_A,
+    'emix': EMIX_XMLNS_A,
+    'xcal': XCAL_XMLNS_A,
+    'strm': STRM_XMLNS_A,
+    'dsig11': DSIG11_XMLNS_B,
+    'ds': DS_XMLNS_B,
+    'clm': CLM5ISO42173A_XMLNS_B,
+    'scale': SCALE_XMLNS_B,
+    'power': POWER_XMLNS_B,
+    'gb': GB_XMLNS_B,
+    'atom': ATOM_XMLNS_B,
+    'ccts': CCTS_XMLNS_B,
+    'gml': GML_XMLNS_B,
+    'gmlsf': GMLSF_XMLNS_B,
+    'xsi': XSI_XMLNS_B
 }
 
 # Other important constants that we need
@@ -83,7 +82,7 @@ class EventHandler(object):
     resource_id -- ID of resource in VEN we want to manipulate
     party_id -- ID of the party we are party of
     '''
-    
+
     def __init__(self, ven_id, vtn_ids=None, market_contexts=None,
                  group_id=None, resource_id=None, party_id=None,
                  oadr_profile_level=OADR_PROFILE_20A,
@@ -112,7 +111,7 @@ class EventHandler(object):
 
         # 'market_contexts' is also a CSV string
         self.market_contexts = market_contexts
-        if self.market_contexts is not None: 
+        if self.market_contexts is not None:
             self.market_contexts = self.market_contexts.split(',')
 
         self.group_id = group_id
@@ -132,10 +131,9 @@ class EventHandler(object):
         else:
             # Default/Safety, make it the 2.0a spec 
             self.oadr_profile_level = OADR_PROFILE_20A
-            self.ns_map = NS_A      
+            self.ns_map = NS_A
 
         self.db = db or memdb.DBHandler()
-
 
     def handle_payload(self, payload):
         '''
@@ -156,14 +154,14 @@ class EventHandler(object):
         # send it a 400 message and return
         if self.vtn_ids and (vtnID not in self.vtn_ids):
             logging.warning("Unexpected VTN ID: %s, expected one of %r", vtnID, self.vtn_ids)
-            return self.build_error_response( requestID, '400', 'Unknown vtnID: %s'% vtnID )
+            return self.build_error_response(requestID, '400', 'Unknown vtnID: %s' % vtnID)
 
-        updated_events={}
+        updated_events = {}
 
         # Loop through all of the oadr:oadrEvent 's in the payload
         for evt in payload.iterfind('oadr:oadrEvent', namespaces=self.ns_map):
             response_required = evt.findtext("oadr:oadrResponseRequired", namespaces=self.ns_map)
-            evt = evt.find('ei:eiEvent', namespaces=self.ns_map) # go to nested eiEvent
+            evt = evt.find('ei:eiEvent', namespaces=self.ns_map)  # go to nested eiEvent
             e_id = get_event_id(evt, self.ns_map)
             e_mod_num = get_mod_number(evt, self.ns_map)
             e_status = get_status(evt, self.ns_map)
@@ -171,14 +169,14 @@ class EventHandler(object):
             current_signal_val = get_current_signal_value(evt, self.ns_map)
 
             logging.debug('------ EVENT ID: %s(%s); Status: %s; Current Signal: %s',
-                    e_id, e_mod_num, e_status, current_signal_val)
-            
+                          e_id, e_mod_num, e_status, current_signal_val)
+
             all_events.append(e_id)
             old_event = self.get_event(e_id)
             old_mod_num = None
-            
-            if old_event is not None:                                   # If there is an older event
-                old_mod_num = get_mod_number(old_event, self.ns_map)    # get it's mod number
+
+            if old_event is not None:  # If there is an older event
+                old_mod_num = get_mod_number(old_event, self.ns_map)  # get it's mod number
 
             # For the events we need to reply to, make our "opts," and check the status of the event
             if (old_event is None) or (e_mod_num > old_mod_num) or (response_required == 'always'):
@@ -188,11 +186,11 @@ class EventHandler(object):
 
                 if (old_event is not None) and (old_mod_num > e_mod_num):
                     logging.warning(
-                            "Got a smaller modification number (%d < %d) for event %s",
-                            e_mod_num, old_mod_num, e_id )
+                        "Got a smaller modification number (%d < %d) for event %s",
+                        e_mod_num, old_mod_num, e_id)
                     status = '403'
                     opt = 'optOut'
-                    
+
                 if not self.check_target_info(evt):
                     logging.info("Opting out of event %s - no target match", e_id)
                     status = '403'
@@ -206,7 +204,7 @@ class EventHandler(object):
 
                 if self.market_contexts and (e_market_context not in self.market_contexts):
                     logging.info("Opting out of event %s - market context %s does not match",
-                            e_id, e_market_context )
+                                 e_id, e_market_context)
                     opt = 'optOut'
                     status = '405'
 
@@ -220,15 +218,15 @@ class EventHandler(object):
                 if start_offset[0] or start_offset[1]:
                     start = get_active_period_start(evt, self.ns_map)
 
-                    new_start = schedule.random_offset( start, 
-                            start_offset[0], start_offset[1] )
+                    new_start = schedule.random_offset(start,
+                                                       start_offset[0], start_offset[1])
 
-                    logging.debug( "Randomizing start time for %s(%d) - " + \
-                            "startBefore/ startAfter: %r. New start time: %s", 
-                            e_id, e_mod_num, start_offset, new_start )
+                    logging.debug("Randomizing start time for %s(%d) - " + \
+                                  "startBefore/ startAfter: %r. New start time: %s",
+                                  e_id, e_mod_num, start_offset, new_start)
 
                     set_active_period_start(evt, new_start, self.ns_map)
-                
+
                 # Add/update the event to our list
                 updated_events[e_id] = evt
                 self.update_event(e_id, evt, vtnID)
@@ -238,14 +236,14 @@ class EventHandler(object):
         for evt in self.get_active_events():
             e_id = get_event_id(evt, self.ns_map)
 
-            if e_id not in all_events: 
+            if e_id not in all_events:
                 logging.debug('Removing cancelled event %s', e_id)
                 remove_events[e_id] = self.get_event(e_id)
 
         # call the callback of updated & removed events.  
         try:
             if self.event_callback is not None:
-                self.event_callback(updated_events, remove_events )
+                self.event_callback(updated_events, remove_events)
 
         except Exception as ex:
             logging.warning("Error in event callback! %s", ex)
@@ -260,7 +258,6 @@ class EventHandler(object):
 
         return reply
 
-    
     def build_request_payload(self):
         '''
         Assemble an XML payload to request an event from the VTN.
@@ -274,18 +271,17 @@ class EventHandler(object):
         emix = ElementMaker(namespace=self.ns_map['emix'], nsmap=self.ns_map)
 
         payload = oadr.oadrRequestEvent(
-                pyld.eiRequestEvent(
-                    pyld.requestID(str(uuid.uuid4())),
-#                    emix.marketContext('http://enernoc.com'),
-                    ei.venID(self.ven_id),
-#                    ei.eventID('asdf'),
-#                    pyld.eventFilter('all'),
-                    pyld.replyLimit('99')
-                )
-        ) 
+            pyld.eiRequestEvent(
+                pyld.requestID(str(uuid.uuid4())),
+                #                    emix.marketContext('http://enernoc.com'),
+                ei.venID(self.ven_id),
+                #                    ei.eventID('asdf'),
+                #                    pyld.eventFilter('all'),
+                pyld.replyLimit('99')
+            )
+        )
 
         return payload
-
 
     def build_created_payload(self, events):
         '''
@@ -307,25 +303,24 @@ class EventHandler(object):
         def responses(events):
             for e_id, mod_num, requestID, opt, status in events:
                 yield ei.eventResponse(
-                        ei.responseCode(str(status)),
-                        pyld.requestID(requestID),
-                        ei.qualifiedEventID(
-                            ei.eventID(e_id),
-                            ei.modificationNumber(str(mod_num)) ),
-                        ei.optType(opt) )
+                    ei.responseCode(str(status)),
+                    pyld.requestID(requestID),
+                    ei.qualifiedEventID(
+                        ei.eventID(e_id),
+                        ei.modificationNumber(str(mod_num))),
+                    ei.optType(opt))
 
         payload = oadr.oadrCreatedEvent(
-                pyld.eiCreatedEvent(
-                    ei.eiResponse(
-                        ei.responseCode('200'),
-                        pyld.requestID() ),
-                    ei.eventResponses( *list(responses(events)) ),
-                    ei.venID(self.ven_id) ) )
+            pyld.eiCreatedEvent(
+                ei.eiResponse(
+                    ei.responseCode('200'),
+                    pyld.requestID()),
+                ei.eventResponses(*list(responses(events))),
+                ei.venID(self.ven_id)))
 
-        logging.debug( "Created payload:\n%s", 
-                etree.tostring(payload, pretty_print=True) )
+        logging.debug("Created payload:\n%s",
+                      etree.tostring(payload, pretty_print=True))
         return payload
-
 
     def build_error_response(self, request_id, code, description=None):
         '''
@@ -343,16 +338,15 @@ class EventHandler(object):
         ei = ElementMaker(namespace=self.ns_map['ei'], nsmap=self.ns_map)
 
         payload = oadr.oadrCreatedEvent(
-                pyld.eiCreatedEvent(
-                    ei.eiResponse(
-                        ei.responseCode(code),
-                        pyld.requestID() ),
-                    ei.venID(self.ven_id) ) )
+            pyld.eiCreatedEvent(
+                ei.eiResponse(
+                    ei.responseCode(code),
+                    pyld.requestID()),
+                ei.venID(self.ven_id)))
 
-        logging.debug( "Error payload:\n%s", 
-                etree.tostring(payload, pretty_print=True) )
+        logging.debug("Error payload:\n%s",
+                      etree.tostring(payload, pretty_print=True))
         return payload
-
 
     def check_target_info(self, evt):
         '''
@@ -385,7 +379,6 @@ class EventHandler(object):
                 accept = True
 
         return accept
-   
 
     def get_active_events(self):
         '''
@@ -397,9 +390,8 @@ class EventHandler(object):
         active = self.db.get_active_events()
         for e_id in active.keys():
             active[e_id] = etree.XML(active[e_id])
-        
-        return iter(active.values())
 
+        return iter(active.values())
 
     def update_all_events(self, event_dict, vtn_id):
         '''
@@ -419,7 +411,6 @@ class EventHandler(object):
 
         self.db.update_all_events(event_list)
 
-
     def update_event(self, e_id, event, vtn_id):
         '''
         Sets an older event of e_id to the newer one, or just add a new one.
@@ -432,7 +423,6 @@ class EventHandler(object):
                              get_mod_number(event, self.ns_map),
                              etree.tostring(event),
                              vtn_id)
-
 
     def get_event(self, e_id):
         '''
@@ -448,8 +438,7 @@ class EventHandler(object):
         if evt is not None:
             evt = etree.XML(evt)
 
-        return evt;
-
+        return evt
 
     def remove_events(self, evt_id_list):
         '''
@@ -458,7 +447,6 @@ class EventHandler(object):
         event_id_list - List of Event IDs 
         '''
         self.db.remove_events(evt_id_list)
-
 
 
 def get_event_id(evt, ns_map=NS_A):
@@ -497,9 +485,9 @@ def get_mod_number(evt, ns_map=NS_A):
     Returns: an ei:modificationNumber value
     '''
 
-    return int( evt.findtext(
+    return int(evt.findtext(
         "ei:eventDescriptor/ei:modificationNumber",
-        namespaces=ns_map) )
+        namespaces=ns_map))
 
 
 def get_market_context(evt, ns_map=NS_A):
@@ -541,21 +529,21 @@ def get_signals(evt, ns_map=NS_A):
 
     simple_signal = None
     signals = []
-    for signal in evt.iterfind( 'ei:eiEventSignals/ei:eiEventSignal', namespaces=ns_map ):
+    for signal in evt.iterfind('ei:eiEventSignals/ei:eiEventSignal', namespaces=ns_map):
         signal_name = signal.findtext('ei:signalName', namespaces=ns_map)
         signal_type = signal.findtext('ei:signalType', namespaces=ns_map)
-        
+
         if signal_name == 'simple' and signal_type in VALID_SIGNAL_TYPES:
             simple_signal = signal  # This is A profile only conformance rule!
 
     if simple_signal is None:
         return None
 
-    for interval in simple_signal.iterfind( 'strm:intervals/ei:interval', namespaces=ns_map ):
-        duration = interval.findtext( 'xcal:duration/xcal:duration', namespaces=ns_map )
+    for interval in simple_signal.iterfind('strm:intervals/ei:interval', namespaces=ns_map):
+        duration = interval.findtext('xcal:duration/xcal:duration', namespaces=ns_map)
         uid = interval.findtext('xcal:uid/xcal:text', namespaces=ns_map)
         value = interval.findtext('ei:signalPayload//ei:value', namespaces=ns_map)
-        signals.append( (duration, uid, value) )
+        signals.append((duration, uid, value))
 
     return signals
 
@@ -571,12 +559,12 @@ def get_active_period_start(evt, ns_map=NS_A):
     '''
 
     dttm_str = evt.findtext(
-            'ei:eiActivePeriod/xcal:properties/xcal:dtstart/xcal:date-time',
-            namespaces=ns_map )
+        'ei:eiActivePeriod/xcal:properties/xcal:dtstart/xcal:date-time',
+        namespaces=ns_map)
     return schedule.str_to_datetime(dttm_str)
 
 
-def set_active_period_start(evt,dttm, ns_map=NS_A):
+def set_active_period_start(evt, dttm, ns_map=NS_A):
     '''
     Sets the "active period start," of an event
 
@@ -585,8 +573,8 @@ def set_active_period_start(evt,dttm, ns_map=NS_A):
     '''
 
     active_period_element = evt.find(
-            'ei:eiActivePeriod/xcal:properties/xcal:dtstart/xcal:date-time',
-            namespaces=ns_map )
+        'ei:eiActivePeriod/xcal:properties/xcal:dtstart/xcal:date-time',
+        namespaces=ns_map)
     active_period_element.text = schedule.dttm_to_str(dttm)
 
 
@@ -600,12 +588,12 @@ def get_start_before_after(evt, ns_map=NS_A):
     Returns: A tuple of (xcal:startbefore, xcal:startafter)
     '''
 
-    return ( evt.findtext(
-            'ei:eiActivePeriod/xcal:properties/xcal:tolerance/xcal:tolerate/xcal:startbefore',
-            namespaces=ns_map ),
+    return (evt.findtext(
+        'ei:eiActivePeriod/xcal:properties/xcal:tolerance/xcal:tolerate/xcal:startbefore',
+        namespaces=ns_map),
             evt.findtext(
-            'ei:eiActivePeriod/xcal:properties/xcal:tolerance/xcal:tolerate/xcal:startafter',
-            namespaces=ns_map ) )
+                'ei:eiActivePeriod/xcal:properties/xcal:tolerance/xcal:tolerate/xcal:startafter',
+                namespaces=ns_map))
 
 
 def get_group_ids(evt, ns_map=NS_A):
@@ -619,6 +607,7 @@ def get_group_ids(evt, ns_map=NS_A):
     '''
 
     return [e.text for e in evt.iterfind('ei:eiTarget/ei:groupID', namespaces=ns_map)]
+
 
 def get_resource_ids(evt, ns_map=NS_A):
     '''
@@ -657,4 +646,3 @@ def get_ven_ids(evt, ns_map=NS_A):
     '''
 
     return [e.text for e in evt.iterfind('ei:eiTarget/ei:venID', namespaces=ns_map)]
-

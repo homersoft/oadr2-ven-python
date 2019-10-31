@@ -1,4 +1,3 @@
-
 '''
 This module handles scheduling for OpenADR2 entities, 
 e.g. event schedules, price schedules, etc.
@@ -6,15 +5,15 @@ e.g. event schedules, price schedules, etc.
 
 __author__ = 'Thom Nichols tnichols@enernoc.com'
 
-import re
-import datetime
 import calendar
+import datetime
 import random
-#import logging
+import re
+
+# import logging
 from dateutil.relativedelta import relativedelta
 
 DB_PATH = 'oadr2.db'
-
 
 DURATION_PAT = r'([+-])?P(?:(\d+)Y)?(?:(\d+)M)?(?:(\d+)D)?T?(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?'
 DURATION_REX = re.compile(DURATION_PAT)
@@ -37,7 +36,7 @@ def parse_duration(dur_str):
     return (groups[0] or '+',) + vals
 
 
-def choose_interval(start,interval_list,now=None):
+def choose_interval(start, interval_list, now=None):
     '''
     Given a list of durations, find the duration that 'now' falls into.
     The returned value is the index of the `dur_list` or `None` if 
@@ -48,16 +47,16 @@ def choose_interval(start,interval_list,now=None):
     total_time = 0
 
     interval_start_list = durations_to_dates(
-            start, interval_list )
-#    logging.debug('All interval starts: %r', interval_start_list)
+        start, interval_list)
+    #    logging.debug('All interval starts: %r', interval_start_list)
 
     current_interval_end = None
-        
+
     for i in range(len(interval_start_list)):
 
         new_interval_end = interval_start_list[i]
 
-        if new_interval_end > now: 
+        if new_interval_end > now:
             # if the new interval is > now, we are in the interval prior.  
             # But if the prior interval is index 0, it means the event hasn't
             # started yet, in which case return value will = -1
@@ -84,15 +83,15 @@ def duration_to_delta(duration_str):
     Returns - a 2-tuple containing (delta, sign) where sign is 
               either '+' or '-'
     '''
-    vals = parse_duration( duration_str )
+    vals = parse_duration(duration_str)
     sign = vals[0]
     return relativedelta(
-                years= vals[1],
-                months= vals[2],
-                days= vals[3],
-                hours= vals[4],
-                minutes= vals[5],
-                seconds= vals[6] ), sign
+        years=vals[1],
+        months=vals[2],
+        days=vals[3],
+        hours=vals[4],
+        minutes=vals[5],
+        seconds=vals[6]), sign
 
 
 def durations_to_dates(start, dur_list):
@@ -107,25 +106,25 @@ def durations_to_dates(start, dur_list):
         raise ValueError('start must be a datetime object')
 
     new_dttm = start
-    new_list = [start,]
+    new_list = [start, ]
 
     for i in range(len(dur_list)):
-        delta, sign = duration_to_delta( dur_list[i] )
+        delta, sign = duration_to_delta(dur_list[i])
         new_dttm = new_dttm + delta if sign == '+' else new_dttm - delta
-        new_list.append( new_dttm )
+        new_list.append(new_dttm)
 
     return new_list
 
 
 def str_to_datetime(dt_str):
     fmt = '%Y-%m-%dT%H:%M:%S.%fZ' if '.' in dt_str \
-            else '%Y-%m-%dT%H:%M:%SZ'
+        else '%Y-%m-%dT%H:%M:%SZ'
     return datetime.datetime.strptime(dt_str, fmt)
 
 
 def dttm_to_str(dttm, include_msec=True):
     fmt = '%Y-%m-%dT%H:%M:%S.%fZ' if include_msec \
-            else '%Y-%m-%dT%H:%M:%SZ'
+        else '%Y-%m-%dT%H:%M:%SZ'
     return dttm.strftime(fmt)
 
 
@@ -135,13 +134,13 @@ def random_offset(dttm, start_before, start_after):
     pick a random start time for this event.
     '''
     if not start_before and not start_after:
-        return dttm # no offset
+        return dttm  # no offset
 
     min_dttm = dttm - duration_to_delta(start_before)[0] \
-            if start_before else dttm
+        if start_before else dttm
 
     max_dttm = dttm + duration_to_delta(start_after)[0] \
-            if start_after else dttm
+        if start_after else dttm
 
     timestamp1 = int(calendar.timegm(min_dttm.utctimetuple()))
     timestamp2 = int(calendar.timegm(max_dttm.utctimetuple()))
@@ -149,4 +148,3 @@ def random_offset(dttm, start_before, start_after):
     random_start = random.randint(timestamp1, timestamp2)
 
     return datetime.datetime.utcfromtimestamp(random_start)
-
