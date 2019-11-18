@@ -175,7 +175,7 @@ class OpenADR2(base.BaseHandler):
         resp.close()
         #        logging.debug("EiRequestEvent response: %s\n%s", resp.getcode(), data)
 
-        if resp.headers.gettype() != CONTENT_TYPE:
+        if CONTENT_TYPE not in resp.headers.get("Content-Type", ""):
             logging.warn('Unexpected content type')
 
         reply = None

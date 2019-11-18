@@ -88,9 +88,6 @@ class EventController(object):
         Note the current implementation simply loops based on CONTROL_LOOP_INTERVAL
         except when an updated event is received by a VTN.
         '''
-
-        self._exit.wait(5)  # give a couple seconds before performing first control
-
         while not self._exit.is_set():
             try:
                 logging.debug("Updating control states...")
