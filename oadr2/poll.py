@@ -11,6 +11,7 @@ import threading
 import urllib.error
 import urllib.parse
 import urllib.request
+from urllib.request import HTTPBasicAuthHandler, HTTPPasswordMgrWithDefaultRealm, HTTPSHandler
 
 from lxml import etree
 
@@ -48,6 +49,8 @@ class OpenADR2(base.BaseHandler):
 
     def __init__(self, event_config, vtn_base_uri,
                  control_opts={},
+                 username=None,
+                 password=None,
                  ven_client_cert_key=None,
                  ven_client_cert_pem=None,
                  vtn_ca_certs=None,
@@ -84,6 +87,8 @@ class OpenADR2(base.BaseHandler):
         self.ven_client_cert_key = ven_client_cert_key
         self.ven_client_cert_pem = ven_client_cert_pem
         self.vtn_ca_certs = vtn_ca_certs
+        self.__username = username
+        self.__password = password
 
         self.poll_thread = None
         start_thread = bool(start_thread)
@@ -110,6 +115,16 @@ class OpenADR2(base.BaseHandler):
                     ssl_version=ssl.PROTOCOL_TLSv1,
                     ciphers=HTTPS_CIPHERS)
             )
+        else:
+            context = ssl.SSLContext()
+            handlers.append(HTTPSHandler(context=context))
+
+        if self.__username is not None and self.__password is not None:
+            pass_manager = HTTPPasswordMgrWithDefaultRealm()
+            pass_manager.add_password(None, self.vtn_base_uri, self.__username, self.__password)
+
+            basic_auth_handler = HTTPBasicAuthHandler(pass_manager)
+            handlers.append(basic_auth_handler)
 
         # This is our HTTP client:
         self.http = urllib.request.build_opener(*handlers)
