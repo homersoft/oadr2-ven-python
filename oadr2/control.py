@@ -119,9 +119,9 @@ class EventController(object):
         signal_level, evt_id, remove_events = self._calculate_current_event_status(events)
 
         if remove_events:
-            # remove any events that we've detected have ended.
+            # remove any events that we've detected have ended or been cancelled.
             # TODO callback for expired events??
-            logging.debug("Removing completed events: %s", remove_events)
+            logging.debug("Removing completed or cancelled events: %s", remove_events)
             self.event_handler.remove_events(remove_events)
         
         return signal_level
@@ -141,6 +141,15 @@ class EventController(object):
                 e_id = event.get_event_id(e, self.event_handler.ns_map)
                 e_mod_num = event.get_mod_number(e, self.event_handler.ns_map)
                 e_status = event.get_status(e, self.event_handler.ns_map)
+
+                if e_status is None:
+                    logging.debug("Ignoring event %s - no valid status", e_id)
+                    continue
+
+                if e_status.lower() == "cancelled":
+                    logging.debug("Event %s(%d) has been cancelled", e_id, e_mod_num)
+                    remove_events.append(e_id)
+                    continue
 
                 if not self.event_handler.check_target_info(e):
                     logging.debug("Ignoring event %s - no target match", e_id)
