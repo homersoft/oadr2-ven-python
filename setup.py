@@ -12,5 +12,6 @@ setup(
     url = 'http://open.enernoc.com',
     packages = find_packages('.', exclude=['*.tests']),
     install_requires = ['lxml', 'sleekxmpp', 'dnspython', 'python-dateutil'],
+    tests_require = ['freezegun'],
     zip_safe = False,
 )

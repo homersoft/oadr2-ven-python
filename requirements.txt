@@ -3,3 +3,4 @@ lxml==4.4.1
 python-dateutil==2.1
 six==1.12.0
 sleekxmpp==1.1.11
+freezegun==0.3.15
