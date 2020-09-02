@@ -134,6 +134,7 @@ class EventHandler(object):
             self.ns_map = NS_A
 
         self.db = db or memdb.DBHandler()
+        self.optouts = set()
 
     def handle_payload(self, payload):
         '''
@@ -179,7 +180,7 @@ class EventHandler(object):
                 old_mod_num = get_mod_number(old_event, self.ns_map)  # get it's mod number
 
             # For the events we need to reply to, make our "opts," and check the status of the event
-            if (old_event is None) or (e_mod_num > old_mod_num) or (response_required == 'always'):
+            if response_required == 'always':
                 # By default, we optIn and have an "OK," status (200)
                 opt = 'optIn'
                 status = '200'
@@ -194,6 +195,11 @@ class EventHandler(object):
                 if not self.check_target_info(evt):
                     logging.info("Opting out of event %s - no target match", e_id)
                     status = '403'
+                    opt = 'optOut'
+
+                if e_id in self.optouts:
+                    logging.info("Opting out of event %s - user opted out", e_id)
+                    status = '200'
                     opt = 'optOut'
 
                 valid_signals = get_signals(evt, self.ns_map)
@@ -388,6 +394,12 @@ class EventHandler(object):
         '''
         # Get the events, and convert their XML blobs to lxml objects
         active = self.db.get_active_events()
+
+        opted_out = self.optouts.intersection(active.keys())
+
+        for evt in opted_out:
+            active.pop(evt)
+
         for e_id in active.keys():
             active[e_id] = etree.XML(active[e_id])
 
@@ -447,6 +459,21 @@ class EventHandler(object):
         event_id_list - List of Event IDs 
         '''
         self.db.remove_events(evt_id_list)
+        for evt in evt_id_list:
+            self.optouts.discard(evt)
+
+    def optout_event(self, e_id):
+        '''
+        Opt out of an event by its ID
+
+        :param e_id: ID of the event we want to opt out of
+        :return:
+        '''
+
+        if e_id not in self.db.get_active_events():
+            return  # optout of not existing event
+
+        self.optouts.add(e_id)
 
 
 def get_event_id(evt, ns_map=NS_A):
