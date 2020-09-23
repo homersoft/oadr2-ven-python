@@ -4,6 +4,7 @@ import urllib.error
 import urllib.parse
 import urllib.request
 import requests
+from random import uniform
 
 from lxml import etree
 
@@ -12,6 +13,7 @@ from oadr2 import base
 # HTTP parameters:
 REQUEST_TIMEOUT = 5  # HTTP request timeout
 DEFAULT_VTN_POLL_INTERVAL = 300  # poll the VTN every X seconds
+POLLING_JITTER = 0.1  # polling interval +/-
 OADR2_URI_PATH = 'OpenADR2/Simple/'  # URI of where the VEN needs to request from
 
 
@@ -121,7 +123,12 @@ class OpenADR2(base.BaseHandler):
             except Exception as ex:
                 logging.exception("Error in OADR2 poll thread: %s", ex)
 
-            self._exit.wait(self.vtn_poll_interval)
+            self._exit.wait(
+                uniform(
+                    self.vtn_poll_interval*(1-POLLING_JITTER),
+                    self.vtn_poll_interval*(1+POLLING_JITTER)
+                )
+            )
         logging.info(" +++++++++++++++ OADR2 polling thread has exited.")
 
     def query_vtn(self):
