@@ -1,5 +1,5 @@
 '''
-This module handles scheduling for OpenADR2 entities, 
+This module handles scheduling for OpenADR2 entities,
 e.g. event schedules, price schedules, etc.
 '''
 
@@ -25,7 +25,7 @@ def parse_duration(dur_str):
     http://en.wikipedia.org/wiki/ISO_8601#Durations
 
     Returns a tuple of `(sign,years,months,days,hours,minutes,seconds)`
-    If any of the increments are omitted, the value for that 
+    If any of the increments are omitted, the value for that
     increment will be `0`.  If sign is omitted, it defaults to '+'
 
     Example:
@@ -39,7 +39,7 @@ def parse_duration(dur_str):
 def choose_interval(start, interval_list, now=None):
     '''
     Given a list of durations, find the duration that 'now' falls into.
-    The returned value is the index of the `dur_list` or `None` if 
+    The returned value is the index of the `dur_list` or `None` if
     the last interval still ends at some point before 'now'.
     The return value will be -1 if the event has not started yet.
     '''
@@ -57,17 +57,17 @@ def choose_interval(start, interval_list, now=None):
         new_interval_end = interval_start_list[i]
 
         if new_interval_end > now:
-            # if the new interval is > now, we are in the interval prior.  
+            # if the new interval is > now, we are in the interval prior.
             # But if the prior interval is index 0, it means the event hasn't
             # started yet, in which case return value will = -1
             return i - 1
 
         if new_interval_end == current_interval_end:
-            # means there was a 0 duration, which is a special case meaning 
+            # means there was a 0 duration, which is a special case meaning
             # 'unending' - this interval will always include 'now'
             return i - 1
 
-        # else look at next interval: 
+        # else look at next interval:
         current_interval_end = new_interval_end
 
     # the last interval still did not reach 'now',
@@ -80,7 +80,7 @@ def duration_to_delta(duration_str):
     Take a duration string like 'PT5M' or 'P0Y0M1DT3H2M1S'
     and convert it to a dateutil relativedelta
 
-    Returns - a 2-tuple containing (delta, sign) where sign is 
+    Returns - a 2-tuple containing (delta, sign) where sign is
               either '+' or '-'
     '''
     vals = parse_duration(duration_str)

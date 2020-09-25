@@ -3,9 +3,9 @@ import threading
 import urllib.error
 import urllib.parse
 import urllib.request
-import requests
 from random import uniform
 
+import requests
 from lxml import etree
 
 from oadr2 import base
