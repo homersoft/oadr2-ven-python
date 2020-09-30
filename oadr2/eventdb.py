@@ -68,15 +68,12 @@ class Event(Base):
 
 class DBHandler:
     def __init__(self, db_path: str):
-        engine = create_engine(db_path)
+        engine = create_engine(f"sqlite:///{db_path}")
         self.session: Session = sessionmaker(bind=engine, autocommit=True)()
         Event.metadata.create_all(engine)
 
     def get_active_events(self) -> List[EventSchema]:
         return [EventSchema.from_orm(evt) for evt in self.session.query(Event).all()]
-
-    def update_all_events(self, records: Sequence[Tuple[str, str, int, str]]) -> None:
-        pass
 
     def update_event(self, event: EventSchema) -> None:
         accepted_params = {"id", "mod_number", "start", "original_start", "end", "signals",
@@ -90,4 +87,4 @@ class DBHandler:
 
     def remove_events(self, event_ids: Sequence[str]) -> None:
         for event_id in event_ids:
-            self.session.query(Event).filter(id=event_id).delete()
+            self.session.query(Event).filter_by(id=event_id).delete()

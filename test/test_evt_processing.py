@@ -1,225 +1,451 @@
 from datetime import datetime, timedelta
+from unittest import mock
 
 import pytest
-from lxml import etree
 
-from oadr2 import controller, event, eventdb
-from oadr2.schemas import EventSchema, SignalSchema, NS_A
-
-template = """<eiEvent xmlns="http://docs.oasis-open.org/ns/energyinterop/201110" xmlns:ns2="http://docs.oasis-open.org/ns/energyinterop/201110/payloads" xmlns:ns3="http://docs.oasis-open.org/ns/emix/2011/06" xmlns:ns4="urn:ietf:params:xml:ns:icalendar-2.0" xmlns:ns5="urn:ietf:params:xml:ns:icalendar-2.0:stream" xmlns:ns6="http://openadr.org/oadr-2.0a/2012/07">
-  <eventDescriptor>
-    <eventID>Event092420_135848_673_0</eventID>
-    <modificationNumber>1</modificationNumber>
-    <eiMarketContext>
-      <ns3:marketContext>http://MarketContext1</ns3:marketContext>
-    </eiMarketContext>
-    <createdDateTime>{createdDateTime}Z</createdDateTime>
-    <eventStatus>{eventStatus}</eventStatus>
-  </eventDescriptor>
-  <eiActivePeriod>
-    <ns4:properties>
-      <ns4:dtstart>
-        <ns4:date-time>{dtstart}Z</ns4:date-time>
-      </ns4:dtstart>
-      <ns4:duration>
-        <ns4:duration>{duration}</ns4:duration>
-      </ns4:duration>
-      {startafter}
-      <x-eiNotification>
-        <ns4:duration>PT1M</ns4:duration>
-      </x-eiNotification>
-      {cancellation_time}
-      {ending_time}
-    </ns4:properties>
-    <ns4:components xmlns:ei="http://docs.oasis-open.org/ns/energyinterop/201110" xmlns:emix="http://docs.oasis-open.org/ns/emix/2011/06" xmlns:oadr="http://openadr.org/oadr-2.0a/2012/07" xmlns:pyld="http://docs.oasis-open.org/ns/energyinterop/201110/payloads" xmlns:strm="urn:ietf:params:xml:ns:icalendar-2.0:stream" xmlns:xcal="urn:ietf:params:xml:ns:icalendar-2.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"/>
-  </eiActivePeriod>
-  <eiEventSignals>
-    <eiEventSignal>
-      <ns5:intervals>
-        <interval>
-          <ns4:duration>
-            <ns4:duration>PT3M</ns4:duration>
-          </ns4:duration>
-          <ns4:uid>
-            <ns4:text>0</ns4:text>
-          </ns4:uid>
-          <signalPayload>
-            <payloadFloat>
-              <value>1.0</value>
-            </payloadFloat>
-          </signalPayload>
-        </interval>
-        <interval>
-          <ns4:duration>
-            <ns4:duration>PT2M</ns4:duration>
-          </ns4:duration>
-          <ns4:uid>
-            <ns4:text>1</ns4:text>
-          </ns4:uid>
-          <signalPayload>
-            <payloadFloat>
-              <value>1.0</value>
-            </payloadFloat>
-          </signalPayload>
-        </interval>
-      </ns5:intervals>
-      <signalName>simple</signalName>
-      <signalType>level</signalType>
-      <signalID>String</signalID>
-      <currentValue>
-        <payloadFloat>
-          <value>0.0</value>
-        </payloadFloat>
-      </currentValue>
-    </eiEventSignal>
-  </eiEventSignals>
-  <eiTarget/>
-</eiEvent>
-"""
-
-distribute_event_template = """
-<ns6:oadrDistributeEvent xmlns="http://docs.oasis-open.org/ns/energyinterop/201110" xmlns:ns2="http://docs.oasis-open.org/ns/energyinterop/201110/payloads" xmlns:ns3="http://docs.oasis-open.org/ns/emix/2011/06" xmlns:ns4="urn:ietf:params:xml:ns:icalendar-2.0" xmlns:ns5="urn:ietf:params:xml:ns:icalendar-2.0:stream" xmlns:ns6="http://openadr.org/oadr-2.0a/2012/07">
-  <eiResponse>
-    <responseCode>200</responseCode>
-    <ns2:requestID/>
-  </eiResponse>
-  <ns2:requestID>OadrDisReq092520_152645_178</ns2:requestID>
-  <vtnID>TH_VTN</vtnID>
-  <ns6:oadrEvent>
-    {event}
-    <ns6:oadrResponseRequired>always</ns6:oadrResponseRequired>
-  </ns6:oadrEvent>
-</ns6:oadrDistributeEvent>"""
-
-TEST_DB_ADDR = "sqlite:///%s/test2.db"
+from oadr2 import controller, event
+from oadr2.schemas import NS_A
+from test.adr_event_generator import AdrEvent, AdrEventStatus, generate_payload
 
 
-@pytest.fixture
-def params():
-    return {}
+TEST_DB_ADDR = "%s/test2.db"
 
-
-@pytest.fixture
-def event_payload_params(params):
-    created_date = params.get("created_date", datetime.utcnow().isoformat())
-    event_status = params.get("status", "far")
-    start_date = params.get("start_date", (datetime.utcnow() + timedelta(seconds=30)).isoformat())
-    start_after = f"""<ns4:tolerance>
-        <ns4:tolerate>
-          <ns4:startafter>{params.get("start_after")}</ns4:startafter>
-        </ns4:tolerate>
-      </ns4:tolerance>""" if "start_after" in params else ""
-    duration = params.get("duration", "PT1M")
-    cancellation_time = f"""<ns6:cancellation_time>{params.get("cancellation_time")}Z</ns6:cancellation_time>""" if "cancellation_time" in params else ""
-    ending_time = f"""<ns6:ending_time>{params.get("ending_time")}Z</ns6:ending_time>""" if "ending_time" in params else ""
-
-    return dict(
-        createdDateTime=created_date,  # datetime iso string
-        eventStatus=event_status,
-        dtstart=start_date,  # datetime iso string
-        duration=duration,  # iCal string
-        startafter=start_after,  # iCal string
-        ending_time=ending_time,
-        cancellation_time=cancellation_time
+scenario = dict(
+    not_started=AdrEvent(
+        id="FooEvent",
+        start=datetime.utcnow()+timedelta(seconds=60),
+        signals=[dict(index=0, duration=timedelta(seconds=10), level=1.0)],
+        status=AdrEventStatus.PENDING,
+    ),
+    started=AdrEvent(
+        id="FooEvent",
+        start=datetime.utcnow()-timedelta(seconds=5),
+        signals=[dict(index=0, duration=timedelta(seconds=10), level=1.0)],
+        status=AdrEventStatus.ACTIVE,
+    ),
+    not_started_with_target=AdrEvent(
+            id="FooEvent",
+            start=datetime.utcnow() + timedelta(seconds=60),
+            signals=[dict(index=0, duration=timedelta(seconds=10), level=1.0)],
+            status=AdrEventStatus.PENDING, group_ids=["ids"], party_ids=["ids"], resource_ids=["ids"],
+        ),
+    signal_1of2=AdrEvent(
+        id="FooEvent",
+        start=datetime.utcnow() - timedelta(seconds=10),
+        signals=[
+            dict(index=0, duration=timedelta(seconds=15), level=1.0),
+            dict(index=1, duration=timedelta(seconds=5), level=2.0),
+        ],
+        status=AdrEventStatus.ACTIVE,
+    ),
+    signal_2of2=AdrEvent(
+        id="FooEvent",
+        start=datetime.utcnow() - timedelta(seconds=10),
+        signals=[
+            dict(index=0, duration=timedelta(seconds=5), level=1.0),
+            dict(index=1, duration=timedelta(seconds=15), level=2.0),
+        ],
+        status=AdrEventStatus.ACTIVE,
+    ),
+    events_1of2=[
+        AdrEvent(
+            id="FooEvent1",
+            start=datetime.utcnow() - timedelta(seconds=10),
+            signals=[
+                dict(index=0, duration=timedelta(seconds=20), level=1.0),
+            ],
+            status=AdrEventStatus.ACTIVE,
+        ),
+        AdrEvent(
+            id="FooEvent2",
+            start=datetime.utcnow() + timedelta(seconds=10),
+            signals=[
+                dict(index=0, duration=timedelta(seconds=20), level=2.0),
+            ],
+            status=AdrEventStatus.PENDING,
+        ),
+    ],
+    events_2of2=[
+        AdrEvent(
+            id="FooEvent1",
+            start=datetime.utcnow() - timedelta(seconds=10),
+            signals=[
+                dict(index=0, duration=timedelta(seconds=5), level=1.0),
+            ],
+            status=AdrEventStatus.COMPLETED,
+        ),
+        AdrEvent(
+            id="FooEvent2",
+            start=datetime.utcnow() - timedelta(seconds=5),
+            signals=[
+                dict(index=0, duration=timedelta(seconds=20), level=2.0),
+            ],
+            status=AdrEventStatus.PENDING,
+        ),
+    ],
+    cancelled=AdrEvent(
+        id="FooEvent",
+        start=datetime.utcnow()-timedelta(seconds=60),
+        signals=[
+            dict(index=0, duration=timedelta(seconds=120), level=1.0)
+        ],
+        status=AdrEventStatus.CANCELLED,
+        end=datetime.utcnow()-timedelta(seconds=10)
+    ),
+    cancelled_still_active=AdrEvent(
+        id="FooEvent",
+        start=datetime.utcnow()-timedelta(seconds=60),
+        signals=[
+            dict(index=0, duration=timedelta(seconds=120), level=1.0)
+        ],
+        status=AdrEventStatus.CANCELLED,
+        end=datetime.utcnow()+timedelta(seconds=10)
     )
 
-
-@pytest.fixture
-def payload_object(event_payload_params):
-    return etree.fromstring(
-        distribute_event_template.format(event=template.format(**event_payload_params))
-    )
-
-
-@pytest.fixture
-def event_params(params):
-    return dict()
-
-
-@pytest.fixture
-def event_object(event_params):
-    return EventSchema(
-        id=event_params.get("id", 'Event092420_135848_673_0'),
-        vtn_id=event_params.get("vtn_id", "VTN_ID"),
-        mod_number=event_params.get("mod_number", 0),
-        start=event_params.get("start", datetime.utcnow() + timedelta(seconds=1)),
-        original_start=event_params.get("original_start", datetime.utcnow() + timedelta(seconds=1)),
-        end=event_params.get("end", datetime.utcnow() + timedelta(seconds=4)),
-        signals=event_params.get("signals", [
-            SignalSchema(
-                index=0, duration="PT3S", level=1.0
-            )
-        ]),
-        status=event_params.get("status", "far"),
-        cancellation_offset=event_params.get("cancellation_offset", None)
-    )
+)
 
 
 @pytest.mark.parametrize(
-    "event_params, expected",
+    "event_list, expected",
     [
         pytest.param(
-            {},
+            [scenario["not_started"]],
             (0, None, []),
             id="event not started"
         ),
         pytest.param(
-            dict(
-                status="active",
-                start=(datetime.utcnow() - timedelta(seconds=1)).isoformat(),
-                end=(datetime.utcnow() + timedelta(seconds=2)).isoformat(),
-            ),
-            (1.0, 'Event092420_135848_673_0', []),
+            [scenario["not_started_with_target"]],
+            (0, None, []),
+            id="event not started"
+        ),
+        pytest.param(
+            [scenario["started"]],
+            (1.0, 'FooEvent', []),
             id="event started"
         ),
         pytest.param(
-            dict(
-                created_date=(datetime.utcnow() - timedelta(hours=1)).isoformat(),
-                status="cancelled",
-                start_date=(datetime.utcnow() - timedelta(seconds=5)).isoformat(),
-                end=(datetime.utcnow() - timedelta(seconds=1)).isoformat(),
-            ),
-            (0, None, ["Event092420_135848_673_0"]),
+            [scenario["signal_1of2"]],
+            (1.0, 'FooEvent', []),
+            id="event started, signal 1 of 2"
+        ),
+        pytest.param(
+            [scenario["signal_2of2"]],
+            (2.0, 'FooEvent', []),
+            id="event started, signal 2 of 2"
+        ),
+        pytest.param(
+            scenario["events_1of2"],
+            (1.0, 'FooEvent1', []),
+            id="event 1 of 2"
+        ),
+        pytest.param(
+            scenario["events_2of2"],
+            (2.0, 'FooEvent2', ["FooEvent1"]),
+            id="event 2 of 2, first deleted"
+        ),
+        pytest.param(
+            [scenario["cancelled"]],
+            (0, None, ["FooEvent"]),
             id="event cancelled"
         ),
         pytest.param(
-            dict(
-                created_date=(datetime.utcnow() - timedelta(hours=1)).isoformat(),
-                status="cancelled",
-                start=(datetime.utcnow() - timedelta(seconds=5)).isoformat(),
-                end=(datetime.utcnow() + timedelta(seconds=10)).isoformat(),
-                signals=[
-                    SignalSchema(index=0, duration="PT3M", level=1.0)
-                ]
-            ),
-            (1.0, "Event092420_135848_673_0", []),
+            [scenario["cancelled_still_active"]],
+            (1.0, "FooEvent", []),
             id="event cancelled but not deleted"
         ),
-    ],
+    ]
 )
-def test_calculate_current_event_status(expected, event_object, tmpdir):
+def test_calculate_current_event_status(event_list, expected, tmpdir):
     event_handler = event.EventHandler("VEN_ID", db=TEST_DB_ADDR % tmpdir)
     event_controller = controller.EventController(event_handler)
 
-    signal_level, evt_id, remove_events = event_controller._calculate_current_event_status([event_object])
+    signal_level, evt_id, remove_events = event_controller._calculate_current_event_status([evt.to_obj() for evt in event_list])
 
     assert (signal_level, evt_id, remove_events) == expected
 
 
 @pytest.mark.parametrize(
-    "params",
+    "event_list, expected_level, expected_removed",
     [
         pytest.param(
-            {},
+            [scenario["not_started"]], 0, [],
             id="event not started"
+        ),
+        pytest.param(
+            [scenario["started"]], 1.0,  [],
+            id="event started"
+        ),
+        pytest.param(
+            [scenario["signal_1of2"]], 1.0,  [],
+            id="event started, signal 1 of 2"
+        ),
+        pytest.param(
+            [scenario["signal_2of2"]], 2.0, [],
+            id="event started, signal 2 of 2"
+        ),
+        pytest.param(
+            scenario["events_1of2"], 1.0, [],
+            id="event 1 of 2"
+        ),
+        pytest.param(
+            scenario["events_2of2"], 2.0, ["FooEvent1"],
+            id="event 2 of 2, first deleted"
+        ),
+        pytest.param(
+            [scenario["cancelled"]], 0, ["FooEvent"],
+            id="event cancelled"
+        ),
+        pytest.param(
+            [scenario["cancelled_still_active"]], 1.0, [],
+            id="event cancelled but not deleted"
         ),
     ]
 )
-def test_handle_payload(params, payload_object, tmpdir):
+def test_calculate_update_control(event_list, expected_level, expected_removed, tmpdir):
+    db_mock = mock.MagicMock()
+    event_handler = event.EventHandler("VEN_ID", db=TEST_DB_ADDR % tmpdir)
+    event_handler.db.remove_events = db_mock
+    event_controller = controller.EventController(event_handler)
+
+    signal_level = event_controller._update_control([evt.to_obj() for evt in event_list])
+
+    assert signal_level == expected_level
+
+    if expected_removed:
+        parsed_events = db_mock.call_args[0][0]
+        for evt in expected_removed:
+            assert evt in parsed_events
+            parsed_events.remove(evt)
+
+        assert parsed_events == []
+    else:
+        db_mock.assert_not_called()
+
+
+responseCode = 'pyld:eiCreatedEvent/ei:eiResponse/ei:responseCode'
+requestID = 'pyld:eiCreatedEvent/ei:eventResponses/ei:eventResponse/pyld:requestID'
+optType = 'pyld:eiCreatedEvent/ei:eventResponses/ei:eventResponse/ei:optType'
+venID = 'pyld:eiCreatedEvent/ei:venID'
+
+
+@pytest.mark.parametrize(
+    "event_list",
+    [
+        pytest.param(
+            [scenario["not_started"]],
+            id="event not started"
+        ),
+        pytest.param(
+            [scenario["started"]],
+            id="event started"
+        ),
+        pytest.param(
+            [scenario["signal_1of2"]],
+            id="event started, signal 1 of 2"
+        ),
+        pytest.param(
+            [scenario["signal_2of2"]],
+            id="event started, signal 2 of 2"
+        ),
+        pytest.param(
+            [scenario["cancelled"]],
+            id="event cancelled"
+        ),
+        pytest.param(
+            [scenario["cancelled_still_active"]],
+            id="event cancelled but not deleted"
+        ),
+    ]
+)
+def test_handle_payload(event_list, tmpdir):
+    db_mock = mock.MagicMock()
+    event_handler = event.EventHandler("VEN_ID", db=TEST_DB_ADDR % tmpdir)
+    event_handler.db.update_event = db_mock
+
+    reply = event_handler.handle_payload(generate_payload(event_list))
+    assert reply.findtext(responseCode, namespaces=NS_A) == "200"
+    assert reply.findtext(requestID, namespaces=NS_A) == "OadrDisReq092520_152645_178"
+    assert reply.findtext(optType, namespaces=NS_A) == "optIn"
+    assert reply.findtext(venID, namespaces=NS_A) == "VEN_ID"
+
+    db_mock.assert_called_once()
+
+    for index, evt in enumerate(event_list):
+        parsed_event = db_mock.call_args[0][index]
+        expected_event = evt.to_obj()
+
+        assert parsed_event.id == expected_event.id
+        assert parsed_event.start == expected_event.start
+        assert parsed_event.original_start == expected_event.original_start
+        assert parsed_event.cancellation_offset == expected_event.cancellation_offset
+        assert parsed_event.signals == expected_event.signals
+        assert parsed_event.mod_number == expected_event.mod_number
+        assert parsed_event.status == expected_event.status
+        if expected_event.status != AdrEventStatus.CANCELLED.value:
+            assert parsed_event.end == expected_event.end
+
+
+@pytest.mark.parametrize(
+    "expected_event, handler_param",
+    [
+        pytest.param(
+            AdrEvent(
+                id="FooEvent",
+                start=datetime.utcnow() + timedelta(seconds=60),
+                signals=[dict(index=0, duration=timedelta(seconds=10), level=1.0)],
+                status=AdrEventStatus.PENDING, resource_ids=["some_parameter"]
+            ),
+            dict(resource_id="some_parameter"),
+            id="resource_id"
+        ),
+        pytest.param(
+            AdrEvent(
+                id="FooEvent",
+                start=datetime.utcnow() + timedelta(seconds=60),
+                signals=[dict(index=0, duration=timedelta(seconds=10), level=1.0)],
+                status=AdrEventStatus.PENDING, party_ids=["some_parameter"]
+            ),
+            dict(party_id="some_parameter"),
+            id="party_id"
+        ),
+        pytest.param(
+            AdrEvent(
+                id="FooEvent",
+                start=datetime.utcnow() + timedelta(seconds=60),
+                signals=[dict(index=0, duration=timedelta(seconds=10), level=1.0)],
+                status=AdrEventStatus.PENDING, group_ids=["some_parameter"]
+            ),
+            dict(group_id="some_parameter"),
+            id="group_id"
+        ),
+    ]
+)
+def test_handle_payload_with_target_info(expected_event, handler_param, tmpdir):
+    db_mock = mock.MagicMock()
+    event_handler = event.EventHandler("VEN_ID", db=TEST_DB_ADDR % tmpdir, **handler_param)
+    event_handler.db.update_event = db_mock
+
+    reply = event_handler.handle_payload(generate_payload([expected_event]))
+    assert reply.findtext(responseCode, namespaces=NS_A) == "200"
+    assert reply.findtext(requestID, namespaces=NS_A) == "OadrDisReq092520_152645_178"
+    assert reply.findtext(optType, namespaces=NS_A) == "optIn"
+    assert reply.findtext(venID, namespaces=NS_A) == "VEN_ID"
+
+    db_mock.assert_called_once()
+    parsed_event = db_mock.call_args[0][0]
+
+    assert parsed_event.id == expected_event.id
+    assert parsed_event.start == expected_event.start
+    assert parsed_event.original_start == expected_event.original_start
+    assert parsed_event.cancellation_offset == expected_event.cancellation_offset
+    assert parsed_event.signals == expected_event.signals
+    assert parsed_event.mod_number == expected_event.mod_number
+    assert parsed_event.status == expected_event.status.value
+    assert parsed_event.end == expected_event.end
+
+
+@pytest.mark.parametrize(
+    "expected_event, handler_param",
+    [
+        pytest.param(
+            AdrEvent(
+                id="FooEvent",
+                start=datetime.utcnow() + timedelta(seconds=60),
+                signals=[dict(index=0, duration=timedelta(seconds=10), level=1.0)],
+                status=AdrEventStatus.PENDING, resource_ids=["some_parameter"]
+            ),
+            dict(resource_id="other_parameter"),
+            id="resource_id"
+        ),
+        pytest.param(
+            AdrEvent(
+                id="FooEvent",
+                start=datetime.utcnow() + timedelta(seconds=60),
+                signals=[dict(index=0, duration=timedelta(seconds=10), level=1.0)],
+                status=AdrEventStatus.PENDING, party_ids=["some_parameter"]
+            ),
+            dict(party_id="other_parameter"),
+            id="party_id"
+        ),
+        pytest.param(
+            AdrEvent(
+                id="FooEvent",
+                start=datetime.utcnow() + timedelta(seconds=60),
+                signals=[dict(index=0, duration=timedelta(seconds=10), level=1.0)],
+                status=AdrEventStatus.PENDING, group_ids=["some_parameter"]
+            ),
+            dict(group_id="other_parameter"),
+            id="group_id"
+        ),
+    ]
+)
+def test_handle_payload_with_wrong_target_info(expected_event, handler_param, tmpdir):
+    db_mock = mock.MagicMock()
+    event_handler = event.EventHandler("VEN_ID", db=TEST_DB_ADDR % tmpdir, **handler_param)
+    event_handler.db.update_event = db_mock
+
+    reply = event_handler.handle_payload(generate_payload([expected_event]))
+    assert reply.findtext(responseCode, namespaces=NS_A) == "200"
+    assert reply.findtext(requestID, namespaces=NS_A) == "OadrDisReq092520_152645_178"
+    assert reply.findtext(optType, namespaces=NS_A) == "optOut"
+    assert reply.findtext(venID, namespaces=NS_A) == "VEN_ID"
+
+    db_mock.assert_not_called()
+
+
+@pytest.mark.parametrize(
+    "event_list",
+    [
+        pytest.param(
+            [scenario["not_started"]],
+            id="event not started"
+        ),
+        pytest.param(
+            [scenario["started"]],
+            id="event started"
+        ),
+        pytest.param(
+            [scenario["signal_1of2"]],
+            id="event started, signal 1 of 2"
+        ),
+        pytest.param(
+            [scenario["signal_2of2"]],
+            id="event started, signal 2 of 2"
+        ),
+    ]
+)
+def test_handle_payload_with_db(event_list, tmpdir):
     event_handler = event.EventHandler("VEN_ID", db=TEST_DB_ADDR % tmpdir)
 
-    reply = event_handler.handle_payload(payload_object)
-    assert reply.findtext('pyld:eiCreatedEvent/ei:eiResponse/ei:responseCode', namespaces=NS_A) == "200"
-    assert reply.findtext('pyld:eiCreatedEvent/ei:eventResponses/ei:eventResponse/pyld:requestID', namespaces=NS_A) == "OadrDisReq092520_152645_178"
+    reply = event_handler.handle_payload(generate_payload(event_list))
 
-    print(etree.tostring(reply, pretty_print=True).decode("utf-8"))
+    active_events = event_handler.get_active_events()
+    for evt in event_list:
+        assert evt.to_obj() in active_events
+
+
+@pytest.mark.parametrize(
+    "event_list",
+    [
+        pytest.param(
+            [scenario["cancelled"]],
+            id="event cancelled"
+        ),
+        pytest.param(
+            [scenario["cancelled_still_active"]],
+            id="event cancelled but not deleted"
+        ),
+    ]
+)
+def test_handle_cancelled_payload_with_db(event_list, tmpdir):
+    event_handler = event.EventHandler("VEN_ID", db=TEST_DB_ADDR % tmpdir)
+
+    event_handler.handle_payload(generate_payload(event_list))
+
+    active_event = event_handler.get_active_events()[0]
+    expected_event = event_list[0].to_obj()
+
+    assert active_event.end != expected_event.end
+    active_event.end = expected_event.end = None
+    assert active_event == expected_event
+

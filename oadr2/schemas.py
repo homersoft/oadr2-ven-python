@@ -100,7 +100,7 @@ class EventSchema(BaseModel):
 
     def cancel(self):
         self.status = "cancelled"
-        self.end = schedule.random_offset(datetime.utcnow(), 0, self.cancellation_offset)
+        self.end = schedule.random_offset(datetime.utcnow(), 0, self.cancellation_offset) if self.cancellation_offset else datetime.utcnow()
 
     @staticmethod
     def from_xml(evt_xml: etree.XML):

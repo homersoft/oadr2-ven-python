@@ -89,7 +89,7 @@ class EventHandler(object):
             self.oadr_profile_level = OADR_PROFILE_20A
             self.ns_map = NS_A
 
-        self.db = database.DBHandler(db_path=db_path) if db_path else memdb.DBHandler()
+        self.db = eventdb.DBHandler(db_path=db_path)  # TODO: add this back memdb.DBHandler()
         self.optouts = set()
 
     def handle_payload(self, payload):
@@ -129,56 +129,58 @@ class EventHandler(object):
             old_event = self.db.get_event(new_event.id)
 
             # For the events we need to reply to, make our "opts," and check the status of the event
-            if response_required == 'always':
-                # By default, we optIn and have an "OK," status (200)
-                opt = 'optIn'
+
+            # By default, we optIn and have an "OK," status (200)
+            opt = 'optIn'
+            status = '200'
+
+            if old_event and (old_event.mod_number > new_event.mod_number):
+                logging.warning(
+                    f"Got a smaller modification number "
+                    f"({new_event.mod_number} < {old_event.mod_number}) for event {new_event.id}"
+                )
+                status = '403'
+                opt = 'optOut'
+
+            if not self.check_target_info(new_event):
+                logging.info(f"Opting out of event {new_event.id} - no target match")
+                status = '403'
+                opt = 'optOut'
+
+            if new_event.id in self.optouts:
+                logging.info(f"Opting out of event {new_event.id} - user opted out")
                 status = '200'
+                opt = 'optOut'
 
-                if old_event and (old_event.mod_number > new_event.mod_number):
-                    logging.warning(
-                        f"Got a smaller modification number "
-                        f"({new_event.mod_number} < {old_event.mod_number}) for event {new_event.id}"
-                    )
-                    status = '403'
-                    opt = 'optOut'
+            if not new_event.signals:
+                logging.info(f"Opting out of event {new_event.id} - no simple signal")
+                opt = 'optOut'
+                status = '403'
 
-                if not self.check_target_info(new_event):
-                    logging.info(f"Opting out of event {new_event.id} - no target match")
-                    status = '403'
-                    opt = 'optOut'
+            if self.market_contexts and (new_event.market_context not in self.market_contexts):
+                logging.info(
+                    f"Opting out of event {new_event.id} - market context {new_event.market_context} does not match"
+                )
+                opt = 'optOut'
+                status = '405'
 
-                if new_event.id in self.optouts:
-                    logging.info(f"Opting out of event {new_event.id} - user opted out")
-                    status = '200'
-                    opt = 'optOut'
-
-                if not new_event.signals:
-                    logging.info(f"Opting out of event {new_event.id} - no simple signal")
-                    opt = 'optOut'
-                    status = '403'
-
-                if self.market_contexts and (new_event.market_context not in self.market_contexts):
-                    logging.info(
-                        f"Opting out of event {new_event.id} - market context {new_event.market_context} does not match"
-                    )
-                    opt = 'optOut'
-                    status = '405'
-
+            if response_required == 'always':
                 reply_events.append((new_event.id, new_event.mod_number, requestID, opt, status))
 
             # We have a new event or an updated old one
             # if (old_event is None) or (e_mod_num > old_mod_num):
-            if old_event and (old_event.mod_number < new_event.mod_number):
-                # Add/update the event to our list
-                # updated_events[e_id] = evt
-                if new_event.status == "cancelled" and new_event.status != old_event.status:
-                    new_event.cancel()
-                self.db.update_event(new_event)
+            if opt == "optIn":
+                if old_event and (old_event.mod_number < new_event.mod_number):
+                    # Add/update the event to our list
+                    # updated_events[e_id] = evt
+                    if new_event.status == "cancelled" and new_event.status != old_event.status:
+                        new_event.cancel()
+                    self.db.update_event(new_event)
 
-            if not old_event:
-                if new_event.status == "cancelled":
-                    new_event.cancel()
-                self.db.update_event(new_event)
+                if not old_event:
+                    if new_event.status == "cancelled":
+                        new_event.cancel()
+                    self.db.update_event(new_event)
 
         # Find implicitly cancelled events and get rid of them
         for evt in self.get_active_events():
@@ -312,6 +314,13 @@ class EventHandler(object):
 
         return accept
 
+    def fill_event_target_info(self, evt: EventSchema) -> EventSchema:
+        evt.group_ids = [self.group_id] if self.group_id else None
+        evt.resource_ids = [self.resource_id] if self.resource_id else None
+        evt.party_ids = [self.party_id] if self.party_id else None
+        evt.ven_ids = [self.ven_id] if self.ven_id else None
+        return evt
+
     def get_active_events(self) -> List[EventSchema]:
         '''
         Get an iterator of all the active events.
@@ -322,57 +331,12 @@ class EventHandler(object):
         active = self.db.get_active_events()
 
         for index, evt in enumerate(active):
+            evt = self.fill_event_target_info(evt)
             if evt.id in self.optouts:
                 active.pop(index)
 
         return active
 
-    def update_all_events(self, event_dict, vtn_id):
-        '''
-        Clear out all of the current events and add/update some other ones in.
-
-        event_dict -- Dictionary of events we want to add/update.
-                        Key: should be the Event ID
-                        Value: should be the Event (lxml.etree.ElementTree)
-        vtn_id -- ID of VTN these events are associated with.
-        '''
-        # Format the event diciontary int a list of event records for the database
-        event_list = []
-        for e_id in event_dict.keys():
-            mod_num = get_mod_number(event_dict[e_id], self.ns_map)
-            raw_xml = etree.tostring(event_dict[e_id])
-            event_list.append((vtn_id, e_id, mod_num, raw_xml))
-
-        self.db.update_all_events(event_list)
-
-    def update_event(self, e_id, event, vtn_id):
-        '''
-        Sets an older event of e_id to the newer one, or just add a new one.
-
-        e_id -- ID of the event we want to replace/add
-        event -- the event we want to add in
-        vtn_id -- ID of VTN this event is associated with
-        '''
-        self.db.update_event(e_id,
-                             get_mod_number(event, self.ns_map),
-                             etree.tostring(event),
-                             vtn_id)
-
-    def get_event(self, e_id):
-        '''
-        Get an event w/ a specific id.
-
-        e_id -- ID of the event we want
-
-        Returns: The event we want, or None
-        '''
-        evt = self.db.get_event(e_id)
-
-        # Only parse it if it isn't None
-        if evt is not None:
-            evt = etree.XML(evt)
-
-        return evt
 
     def remove_events(self, evt_id_list):
         '''
