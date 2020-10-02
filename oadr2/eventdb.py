@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import List, Optional, Sequence, Tuple, Dict, Union
+from typing import List, Optional, Sequence, Dict, Union
 
 from sqlalchemy import (Column, Float, ForeignKey, Integer, String,
                         create_engine)
@@ -27,7 +27,7 @@ class Event(Base):
     _start = Column(String)
     _original_start = Column(String)
     _end = Column(String)
-    _signals = relationship("Signal", cascade="all")
+    _signals = relationship("Signal", cascade="all,delete")
     cancellation_offset = Column(String)
     status = Column(String)
 
@@ -71,14 +71,18 @@ class DBHandler:
         engine = create_engine(f"sqlite:///{db_path}")
         self.session: Session = sessionmaker(bind=engine, autocommit=True)()
         Event.metadata.create_all(engine)
+        self.accepted_params = {"id", "mod_number", "start", "original_start", "end", "signals",
+                                "cancellation_offset", "status"}
 
     def get_active_events(self) -> List[EventSchema]:
-        return [EventSchema.from_orm(evt) for evt in self.session.query(Event).all()]
+        return sorted([EventSchema.from_orm(evt) for evt in self.session.query(Event).all()], key=lambda evt: evt.start)
 
     def update_event(self, event: EventSchema) -> None:
-        accepted_params = {"id", "mod_number", "start", "original_start", "end", "signals",
-                           "cancellation_offset", "status"}
-        db_item = Event(**event.dict(include=accepted_params))
+        self.remove_events([event.id])
+        self.add_event(event)
+
+    def add_event(self, event: EventSchema) -> None:
+        db_item = Event(**event.dict(include=self.accepted_params))
         self.session.add(db_item)
 
     def get_event(self, event_id: str) -> Optional[EventSchema]:
@@ -88,3 +92,4 @@ class DBHandler:
     def remove_events(self, event_ids: Sequence[str]) -> None:
         for event_id in event_ids:
             self.session.query(Event).filter_by(id=event_id).delete()
+            self.session.query(Signal).filter_by(event_id=event_id).delete()

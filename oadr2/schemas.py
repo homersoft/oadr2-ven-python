@@ -1,6 +1,6 @@
 from pydantic import BaseModel
 from datetime import datetime
-from typing import Dict, List, NamedTuple, Optional, Sequence, Tuple, Union
+from typing import List, Optional, Union
 from lxml import etree
 from oadr2 import schedule
 
@@ -96,11 +96,15 @@ class EventSchema(BaseModel):
             current_signal_end = previous_signal_end + schedule.duration_to_delta(signal.duration)[0]
             if previous_signal_end < now <= current_signal_end:
                 return signal
+            previous_signal_end = current_signal_end
         # TODO: neverending events
 
     def cancel(self):
+        if self.status == "active":
+            self.end = schedule.random_offset(datetime.utcnow(), 0, self.cancellation_offset) if self.cancellation_offset else datetime.utcnow()
+        else:
+            self.end = datetime.utcnow()
         self.status = "cancelled"
-        self.end = schedule.random_offset(datetime.utcnow(), 0, self.cancellation_offset) if self.cancellation_offset else datetime.utcnow()
 
     @staticmethod
     def from_xml(evt_xml: etree.XML):

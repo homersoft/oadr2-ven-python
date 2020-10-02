@@ -8,4 +8,4 @@ before_install:
 install:
   - pip install -r requirements.txt
 script:
-  - pytest test/event_unittest.py test/event_b_unittest.py test/schedule_unittest.py
+  - pytest test/event_unittest.py test/schedule_unittest.py test/signal_level_unittest.py test/test_event_processing.py

@@ -9,6 +9,7 @@ from lxml import etree
 
 from oadr2 import event
 from test.util import read_xml
+from os import remove
 
 xml_dir = os.path.join(os.path.dirname(__file__), 'xml_files')
 
@@ -18,6 +19,8 @@ SAMPLE_DIR = os.path.join(xml_dir, '2.0a_spec/')
 VEN_ID = 'ven_py'
 STATUS_CODES = [200, 403, 405]
 
+DB_FILENAME = "test.db"
+
 
 class EventHandlerTest(unittest.TestCase):
 
@@ -26,7 +29,7 @@ class EventHandlerTest(unittest.TestCase):
 
         # Some configureation variables, by default, this is for the a handler
         self.config = {'vtn_ids': 'vtn_1,vtn_2,vtn_3,TH_VTN',
-                       'ven_id': VEN_ID}
+                       'ven_id': VEN_ID, 'db_path': DB_FILENAME}
         with open(os.path.join(SCHEMA_DIR, 'oadr_20a.xsd')) as oadr_schema_file:
             oadr_schema_doc = etree.parse(oadr_schema_file)
             self.oadr_schema = etree.XMLSchema(oadr_schema_doc)
@@ -37,7 +40,8 @@ class EventHandlerTest(unittest.TestCase):
         print((40 * '='))
 
     def tearDown(self):
-        self.event_handler.update_all_events({}, '')  # Clear out the database
+        remove(DB_FILENAME)
+        # self.event_handler.update_all_events({}, '')  # Clear out the database
         pass
 
     def test_build_request_payload(self):
@@ -196,7 +200,7 @@ class EventHandlerTest(unittest.TestCase):
         # The files
         files = ['batch_a_1.xml', 'batch_a_2.xml', 'batch_a_3.xml', 'batch_a_4.xml']
 
-        # Some other stuff 
+        # Some other stuff
         e_id = 'e_1'
         mod_nums = [0, 1, 2, 4]
         i = 0
@@ -211,8 +215,8 @@ class EventHandlerTest(unittest.TestCase):
             payload = self.event_handler.handle_payload(xml_doc)
 
             # Grab an event from self._events via the stateful methods, and check mod numbers
-            evt = self.event_handler.get_event(e_id)
-            mod_num = event.get_mod_number(evt)
+            evt = self.event_handler.db.get_event(e_id)
+            mod_num = evt.mod_number  # event.get_mod_number(evt)
             self.assertEqual(mod_num, mod_nums[i],
                              msg='Mod number not the same! got=%d, should be=%d' % (mod_num, mod_nums[i]))
             print('Mod number same.')
@@ -239,7 +243,7 @@ class EventHandlerTest(unittest.TestCase):
         # The files
         files = ['batch_b_1.xml', 'batch_b_2.xml', 'batch_b_3.xml']
 
-        # Some other stuff 
+        # Some other stuff
         e_id = 'e_1'
         mod_nums = [0, 5, 3]
         i = 0  # Just an index for us
@@ -254,8 +258,11 @@ class EventHandlerTest(unittest.TestCase):
             payload = self.event_handler.handle_payload(xml_doc)
 
             # Grab an event from self._events via the stateful methods, and check mod numbers
-            evt = self.event_handler.get_event(e_id)
-            mod_num = event.get_mod_number(evt)
+            evt = self.event_handler.db.get_event(e_id)
+            mod_num = evt.mod_number  # event.get_mod_number(evt)
+
+            # evt = self.event_handler.get_event(e_id)
+            # mod_num = event.get_mod_number(evt)
 
             # Make sure we hit the 'else' on the third itteration
             if i != 2:
@@ -283,7 +290,7 @@ class EventHandlerTest(unittest.TestCase):
     def test_batch_c(self):
         # This test will have 8 xml files, 4 w/ valid target ids, 4 that are not.
         # The first four are OK, but the other's aren't.
-        print('in test_batch_d()')
+        print('in test_batch_c()')
 
         # A little key:
         # 1 = good venID            ven_py

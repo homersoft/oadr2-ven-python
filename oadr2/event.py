@@ -180,13 +180,14 @@ class EventHandler(object):
                 if not old_event:
                     if new_event.status == "cancelled":
                         new_event.cancel()
-                    self.db.update_event(new_event)
+                    self.db.add_event(new_event)
 
         # Find implicitly cancelled events and get rid of them
         for evt in self.get_active_events():
             if evt.id not in all_events:
                 logging.debug(f'Mark event {evt.id} as cancelled')
                 evt.cancel()
+                self.db.update_event(evt)
 
         # If we have any in the reply_events list, build some payloads
         logging.debug("Replying for events %r", reply_events)
@@ -360,21 +361,6 @@ class EventHandler(object):
             return  # optout of not existing event
 
         self.optouts.add(e_id)
-
-
-def get_mod_number(evt, ns_map=NS_A):
-    '''
-    Gets the mod number of an event
-
-    evt -- lxml.etree.Element object
-    ns_map -- Dictionary of namesapces for OpenADR 2.0; default is the 2.0a spec
-
-    Returns: an ei:modificationNumber value
-    '''
-
-    return int(evt.findtext(
-        "ei:eventDescriptor/ei:modificationNumber",
-        namespaces=ns_map))
 
 
 def get_current_signal_value(evt, ns_map=NS_A):

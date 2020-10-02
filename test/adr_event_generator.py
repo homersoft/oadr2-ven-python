@@ -74,12 +74,12 @@ class AdrEvent:
         self.original_start = original_start or start
 
         self.cancellation_offset = cancellation_offset
+        self.raw_signals = [signal for signal in signals]
         self.signals = signals
         self.intervals = [AdrInterval(**signal) for signal in self.signals]
         self.duration = timedelta()
         for signal in self.signals:
             self.duration += signal["duration"]
-            signal["duration"] = format_duration(signal["duration"])
         self.end = end or self.start + self.duration
 
         self.group_ids = group_ids
@@ -95,6 +95,7 @@ class AdrEvent:
         self.created_date = datetime(2020, 1, 1, 10, 10)
 
     def to_obj(self):
+        _signals = [dict(index=s["index"], level=s["level"], duration=format_duration(s["duration"])) for s in self.signals]
         return EventSchema(
             id=self.id,
             vtn_id=self.vtn_id,
@@ -102,7 +103,7 @@ class AdrEvent:
             start=self.start,
             original_start=self.original_start,
             end=self.end,
-            signals=[SignalSchema(**signal) for signal in self.signals],
+            signals=[SignalSchema(**signal) for signal in _signals],
             status=self.status.value,
             cancellation_offset=format_duration(self.cancellation_offset) if self.cancellation_offset else None,
             ven_ids=self.ven_ids,
