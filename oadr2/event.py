@@ -1,7 +1,7 @@
 # Event Handler class.
 # --------
 # Requires the python libXML wrapper "lxml" to function properly
-from oadr2 import memdb
+from oadr2 import database, memdb
 
 __author__ = "Thom Nichols <tnichols@enernoc.com>, Ben Summerton <bsummerton@enernoc.com>"
 
@@ -81,12 +81,13 @@ class EventHandler(object):
     group_id -- ID of group that VEN belogns to
     resource_id -- ID of resource in VEN we want to manipulate
     party_id -- ID of the party we are party of
+    db_path -- path to db file
     '''
 
     def __init__(self, ven_id, vtn_ids=None, market_contexts=None,
                  group_id=None, resource_id=None, party_id=None,
                  oadr_profile_level=OADR_PROFILE_20A,
-                 event_callback=None, db=None):
+                 event_callback=None, db_path=None):
         '''
         Class constructor
 
@@ -133,7 +134,7 @@ class EventHandler(object):
             self.oadr_profile_level = OADR_PROFILE_20A
             self.ns_map = NS_A
 
-        self.db = db or memdb.DBHandler()
+        self.db = database.DBHandler(db_path=db_path) if db_path else memdb.DBHandler()
         self.optouts = set()
 
     def handle_payload(self, payload):
