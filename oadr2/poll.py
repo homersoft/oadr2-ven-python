@@ -52,7 +52,7 @@ class OpenADR2(base.BaseHandler):
         vtn_base_uri -- Base URI of the VTN's location
         vtn_poll_interval -- How often we should poll the VTN
         vtn_ca_certs -- CA Certs for the VTN
-        start_thread -- start the thread for the poll loop or not?
+        start_thread -- start the thread for the poll loop or not? left as a legacy option
         '''
 
         # Call the parent's methods
@@ -77,23 +77,42 @@ class OpenADR2(base.BaseHandler):
         self.__password = password
 
         self.poll_thread = None
-        start_thread = bool(start_thread)
-        self._init_client(start_thread)
+        if start_thread:  # this is left for backward compatibility
+            self.start()
 
-        logging.info(" +++++++++++++++ OADR2 module started ++++++++++++++ ")
+        logging.info(" +++++++++++++++ OADR2 module started ++++++++++++++")
 
-    def _init_client(self, start_thread):
+    def start(self):
         '''
         Initialize the HTTP client.
 
         start_thread -- To start the polling thread or not.
         '''
+
+        if self.poll_thread and self.poll_thread.is_alive():
+            logging.warning("Thread is already running")
+            return
+
         self.poll_thread = threading.Thread(
             name='oadr2.poll',
             target=self.poll_vtn_loop)
         self.poll_thread.daemon = True
-        if start_thread:
-            self.poll_thread.start()
+        self._exit.clear()
+
+        self.poll_thread.start()
+        logging.info("Polling thread started")
+
+    def stop(self):
+        '''
+        Stops polling without stopping event controller
+        :return:
+        '''
+        if self.poll_thread is not None:
+            self.poll_thread.join(2)  # they are daemons.
+
+        self._exit.set()
+
+        logging.info("Polling thread stopped")
 
     def exit(self):
         '''
