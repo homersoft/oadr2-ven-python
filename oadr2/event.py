@@ -105,7 +105,7 @@ class EventHandler(object):
            in the `event` module to pick out individual values from each event.
         '''
 
-        # 'vtn_ids' is a CSV string of 
+        # 'vtn_ids' is a CSV string of
         self.vtn_ids = vtn_ids
         if self.vtn_ids is not None:
             self.vtn_ids = self.vtn_ids.split(',')
@@ -130,7 +130,7 @@ class EventHandler(object):
         elif self.oadr_profile_level == OADR_PROFILE_20B:
             self.ns_map = NS_B
         else:
-            # Default/Safety, make it the 2.0a spec 
+            # Default/Safety, make it the 2.0a spec
             self.oadr_profile_level = OADR_PROFILE_20A
             self.ns_map = NS_A
 
@@ -152,7 +152,7 @@ class EventHandler(object):
         requestID = payload.findtext('pyld:requestID', namespaces=self.ns_map)
         vtnID = payload.findtext('ei:vtnID', namespaces=self.ns_map)
 
-        # If we got a payload from an VTN that is not in our list, 
+        # If we got a payload from an VTN that is not in our list,
         # send it a 400 message and return
         if self.vtn_ids and (vtnID not in self.vtn_ids):
             logging.warning("Unexpected VTN ID: %s, expected one of %r", vtnID, self.vtn_ids)
@@ -247,7 +247,7 @@ class EventHandler(object):
                 logging.debug('Removing cancelled event %s', e_id)
                 remove_events[e_id] = self.get_event(e_id)
 
-        # call the callback of updated & removed events.  
+        # call the callback of updated & removed events.
         try:
             if self.event_callback is not None:
                 self.event_callback(updated_events, remove_events)
@@ -457,7 +457,7 @@ class EventHandler(object):
         '''
         Remove a list of events from our internal member dictionary
 
-        event_id_list - List of Event IDs 
+        event_id_list - List of Event IDs
         '''
         self.db.remove_events(evt_id_list)
         for evt in evt_id_list:
