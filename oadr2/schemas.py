@@ -100,8 +100,8 @@ class EventSchema(BaseModel):
             previous_signal_end = current_signal_end
         # TODO: neverending events
 
-    def cancel(self):
-        if self.status == "active":
+    def cancel(self, random_end=False):
+        if self.status == "active" or random_end:
             self.end = schedule.random_offset(datetime.utcnow(), 0, self.cancellation_offset) if self.cancellation_offset else datetime.utcnow()
         else:
             self.end = datetime.utcnow()

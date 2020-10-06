@@ -173,8 +173,11 @@ class EventHandler(object):
                 if old_event and (old_event.mod_number < new_event.mod_number):
                     # Add/update the event to our list
                     # updated_events[e_id] = evt
-                    if new_event.status == "cancelled" and new_event.status != old_event.status:
-                        new_event.cancel()
+                    if new_event.status == "cancelled":
+                        if new_event.status != old_event.status:
+                            new_event.cancel(random_end=True)
+                        else:
+                            new_event.cancel()
                     self.db.update_event(new_event)
 
                 if not old_event:
