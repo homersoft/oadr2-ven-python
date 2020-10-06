@@ -68,7 +68,9 @@ class AdrEvent:
             vtn_id: Optional[str] = "TH_VTN",
             market_context: Optional[str] = "http://market.context",
             test_event: bool = False,
-            priority: int = 1
+            priority: int = 1,
+            response_required: bool = True,
+            signal_name: str = "simple"
     ):
 
         self.id = id
@@ -97,6 +99,8 @@ class AdrEvent:
         self.created_date = datetime(2020, 1, 1, 10, 10)
         self.test_event = test_event
         self.priority = priority
+        self.response_required = response_required
+        self.signal_name = signal_name
 
     def to_obj(self):
         _signals = [dict(index=s["index"], level=s["level"], duration=format_duration(s["duration"])) for s in self.signals]
@@ -115,7 +119,8 @@ class AdrEvent:
             group_ids=self.group_ids,
             resource_ids=self.resource_ids,
             party_ids=self.party_ids,
-            test_event=self.test_event
+            test_event=self.test_event,
+            priority=self.priority
         )
 
     def to_xml(self):
@@ -132,59 +137,63 @@ class AdrEvent:
         party_xml = f"<ei:partyID>{','.join(self.party_ids)}</ei:partyID>" if self.party_ids else ""
 
         return f"""
-<ei:eiEvent>
-  <ei:eventDescriptor>
-    <ei:eventID>{self.id}</ei:eventID>
-    <ei:modificationNumber>{self.mod_number}</ei:modificationNumber>
-    <ei:priority>{self.priority}</ei:priority>
-    <ei:eiMarketContext>
-      <emix:marketContext>{self.market_context}</emix:marketContext>
-    </ei:eiMarketContext>
-    <ei:createdDateTime>{format_datetime(self.created_date)}</ei:createdDateTime>
-    <ei:eventStatus>{self.status.value}</ei:eventStatus>
-    <ei:testEvent>{self.test_event}</ei:testEvent>
-    <ei:vtnComment></ei:vtnComment>
-  </ei:eventDescriptor>
-  <ei:eiActivePeriod>
-    <ical:properties>
-      <ical:dtstart>
-        <ical:date-time>{format_datetime(self.start)}</ical:date-time>
-      </ical:dtstart>
-      <ical:duration>
-        <ical:duration>{format_duration(self.duration)}</ical:duration>
-      </ical:duration>
-      {start_after}
-      <ei:x-eiNotification>
-        <ical:duration>P0Y0M0DT0H0M0S</ical:duration>
-      </ei:x-eiNotification>
-    </ical:properties>
-    <ical:components xsi:nil="true"/>
-  </ei:eiActivePeriod>
-  <ei:eiEventSignals>
-    <ei:eiEventSignal>
-      <strm:intervals>
-        {intervals_xml}
-      </strm:intervals>
-      <ei:signalName>simple</ei:signalName>
-      <ei:signalType>level</ei:signalType>
-      <ei:signalID>SignalID</ei:signalID>
-      <ei:currentValue>
-        <ei:payloadFloat>
-          <ei:value>0.0</ei:value>
-        </ei:payloadFloat>
-      </ei:currentValue>
-    </ei:eiEventSignal>
-  </ei:eiEventSignals>
-  <ei:eiTarget>
-    {ven_xml}
-    {party_xml}
-    {resource_xml}
-    {group_xml}
-  </ei:eiTarget>
-</ei:eiEvent>"""
+<oadrEvent>
+  <ei:eiEvent>
+    <ei:eventDescriptor>
+      <ei:eventID>{self.id}</ei:eventID>
+      <ei:modificationNumber>{self.mod_number}</ei:modificationNumber>
+      <ei:priority>{self.priority}</ei:priority>
+      <ei:eiMarketContext>
+        <emix:marketContext>{self.market_context}</emix:marketContext>
+      </ei:eiMarketContext>
+      <ei:createdDateTime>{format_datetime(self.created_date)}</ei:createdDateTime>
+      <ei:eventStatus>{self.status.value}</ei:eventStatus>
+      <ei:testEvent>{self.test_event}</ei:testEvent>
+      <ei:vtnComment></ei:vtnComment>
+    </ei:eventDescriptor>
+    <ei:eiActivePeriod>
+      <ical:properties>
+        <ical:dtstart>
+          <ical:date-time>{format_datetime(self.start)}</ical:date-time>
+        </ical:dtstart>
+        <ical:duration>
+          <ical:duration>{format_duration(self.duration)}</ical:duration>
+        </ical:duration>
+        {start_after}
+        <ei:x-eiNotification>
+          <ical:duration>P0Y0M0DT0H0M0S</ical:duration>
+        </ei:x-eiNotification>
+      </ical:properties>
+      <ical:components xsi:nil="true"/>
+    </ei:eiActivePeriod>
+    <ei:eiEventSignals>
+      <ei:eiEventSignal>
+        <strm:intervals>
+          {intervals_xml}
+        </strm:intervals>
+        <ei:signalName>{self.signal_name}</ei:signalName>
+        <ei:signalType>level</ei:signalType>
+        <ei:signalID>SignalID</ei:signalID>
+        <ei:currentValue>
+          <ei:payloadFloat>
+            <ei:value>0.0</ei:value>
+          </ei:payloadFloat>
+        </ei:currentValue>
+      </ei:eiEventSignal>
+    </ei:eiEventSignals>
+    <ei:eiTarget>
+      {ven_xml}
+      {party_xml}
+      {resource_xml}
+      {group_xml}
+    </ei:eiTarget>
+  </ei:eiEvent>
+  <oadrResponseRequired>{"always" if self.response_required else "never"}</oadrResponseRequired>
+</oadrEvent>
+"""
 
 
-def generate_payload(event_list):
+def generate_payload(event_list, vtn_id="TH_VTN"):
     evt_xml = "".join([event.to_xml() for event in event_list])
     template = f"""
 <oadrDistributeEvent  
@@ -201,11 +210,8 @@ def generate_payload(event_list):
     <pyld:requestID/>
   </eiResponse>
   <pyld:requestID>OadrDisReq092520_152645_178</pyld:requestID>
-  <ei:vtnID>TH_VTN</ei:vtnID>
-  <oadrEvent>
+  <ei:vtnID>{vtn_id}</ei:vtnID>
     {evt_xml}
-    <oadrResponseRequired>always</oadrResponseRequired>
-  </oadrEvent>
 </oadrDistributeEvent>
 """
     # print(template)

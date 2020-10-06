@@ -147,7 +147,7 @@ class SignalLevelTest(unittest.TestCase):
                 start=datetime(year=2020, month=3, day=18, hour=8),
                 status=AdrEventStatus.ACTIVE,
                 signals=[
-                    dict(index=0, duration=timedelta(hours=5), level=1.0),
+                    dict(index=0, duration=timedelta(hours=2), level=1.0),
                 ],
             ),
             AdrEvent(
