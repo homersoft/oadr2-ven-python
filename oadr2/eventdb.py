@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import List, Optional, Sequence, Dict, Union
 
-from sqlalchemy import (Column, Float, ForeignKey, Integer, String,
+from sqlalchemy import (Column, Float, ForeignKey, Integer, String, Boolean,
                         create_engine)
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import Session, relationship, sessionmaker
@@ -30,6 +30,7 @@ class Event(Base):
     _signals = relationship("Signal", cascade="all,delete")
     cancellation_offset = Column(String)
     status = Column(String)
+    test_event = Column(Boolean)
 
     @property
     def start(self) -> datetime:
@@ -72,7 +73,7 @@ class DBHandler:
         self.session: Session = sessionmaker(bind=engine, autocommit=True)()
         Event.metadata.create_all(engine)
         self.accepted_params = {"id", "mod_number", "start", "original_start", "end", "signals",
-                                "cancellation_offset", "status"}
+                                "cancellation_offset", "status", "test_event"}
 
     def get_active_events(self) -> List[EventSchema]:
         return sorted([EventSchema.from_orm(evt) for evt in self.session.query(Event).all()], key=lambda evt: evt.start)

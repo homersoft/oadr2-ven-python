@@ -67,6 +67,8 @@ class AdrEvent:
             ven_ids: Optional[List[str]] = ['VEN_ID'],
             vtn_id: Optional[str] = "TH_VTN",
             market_context: Optional[str] = "http://market.context",
+            test_event: bool = False,
+            priority: int = 1
     ):
 
         self.id = id
@@ -93,6 +95,8 @@ class AdrEvent:
         self.vtn_id = vtn_id
         self.market_context = market_context
         self.created_date = datetime(2020, 1, 1, 10, 10)
+        self.test_event = test_event
+        self.priority = priority
 
     def to_obj(self):
         _signals = [dict(index=s["index"], level=s["level"], duration=format_duration(s["duration"])) for s in self.signals]
@@ -111,6 +115,7 @@ class AdrEvent:
             group_ids=self.group_ids,
             resource_ids=self.resource_ids,
             party_ids=self.party_ids,
+            test_event=self.test_event
         )
 
     def to_xml(self):
@@ -131,13 +136,13 @@ class AdrEvent:
   <ei:eventDescriptor>
     <ei:eventID>{self.id}</ei:eventID>
     <ei:modificationNumber>{self.mod_number}</ei:modificationNumber>
-    <ei:priority>1</ei:priority>
+    <ei:priority>{self.priority}</ei:priority>
     <ei:eiMarketContext>
       <emix:marketContext>{self.market_context}</emix:marketContext>
     </ei:eiMarketContext>
     <ei:createdDateTime>{format_datetime(self.created_date)}</ei:createdDateTime>
     <ei:eventStatus>{self.status.value}</ei:eventStatus>
-    <ei:testEvent>False</ei:testEvent>
+    <ei:testEvent>{self.test_event}</ei:testEvent>
     <ei:vtnComment></ei:vtnComment>
   </ei:eventDescriptor>
   <ei:eiActivePeriod>

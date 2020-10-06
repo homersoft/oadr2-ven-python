@@ -83,6 +83,7 @@ class EventSchema(BaseModel):
     market_context: Optional[str]
     mod_number: int
     status: str
+    test_event: bool
 
     class Config:
         orm_mode = True
@@ -131,6 +132,7 @@ class EventSchema(BaseModel):
 
         event_duration = EventSchema.get_active_period_duration(evt_xml)[0]
         ending_time = event_duration + event_original_start
+        event_test = EventSchema.get_test_event(evt_xml)
 
         return EventSchema(
             id=event_id,
@@ -146,6 +148,7 @@ class EventSchema(BaseModel):
             market_context=event_market_context,
             mod_number=event_mod_number,
             status=event_status,
+            test_event=event_test
         )
 
     @staticmethod
@@ -155,6 +158,14 @@ class EventSchema(BaseModel):
     @staticmethod
     def get_status(evt, ns_map=NS_A):
         return evt.findtext("ei:eventDescriptor/ei:eventStatus", namespaces=ns_map)
+
+    @staticmethod
+    def get_test_event(evt, ns_map=NS_A):
+        test_event = evt.findtext("ei:eventDescriptor/ei:testEvent", namespaces=ns_map)
+        if not test_event or test_event.lower() == "false":
+            return False
+        else:
+            return True
 
     @staticmethod
     def get_mod_number(evt, ns_map=NS_A):

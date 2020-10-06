@@ -137,6 +137,10 @@ class EventController(object):
                     logging.debug(f"Ignoring event {evt.id} - no valid status")
                     continue
 
+                if evt.test_event:
+                    logging.debug(f"Ignoring event {evt.id} - test event")
+                    continue
+
                 if evt.status.lower() == "cancelled" and datetime.utcnow() > evt.end:
                     logging.debug(f"Event {evt.id}({evt.mod_number}) has been cancelled")
                     remove_events.append(evt.id)
