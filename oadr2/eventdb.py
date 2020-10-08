@@ -50,12 +50,12 @@ class Event(Base):
         self._original_start = value.isoformat()
 
     @property
-    def end(self) -> datetime:
-        return datetime.fromisoformat(self._end)
+    def end(self) -> Union[datetime, None]:
+        return datetime.fromisoformat(self._end) if self._end else None
 
     @end.setter
-    def end(self, value: datetime) -> None:
-        self._end = value.isoformat()
+    def end(self, value: Union[datetime, None]) -> None:
+        self._end = value.isoformat() if value else None
 
     @property
     def signals(self) -> List[Dict[str, Union[float, int, str]]]:

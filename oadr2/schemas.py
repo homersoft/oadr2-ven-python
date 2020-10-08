@@ -73,7 +73,7 @@ class EventSchema(BaseModel):
     id: Union[str, None]
     start: datetime
     original_start: datetime
-    end: datetime
+    end: Union[datetime, None]
     cancellation_offset: Union[str, None]
     signals: List[SignalSchema]
     group_ids: Optional[List[str]]
@@ -133,7 +133,7 @@ class EventSchema(BaseModel):
         event_start = schedule.random_offset(event_original_start, *start_offset)
 
         event_duration = EventSchema.get_active_period_duration(evt_xml)[0]
-        ending_time = event_duration + event_original_start
+        ending_time = event_duration + event_start if bool(event_duration) else None
         event_test = EventSchema.get_test_event(evt_xml)
 
         return EventSchema(
