@@ -84,6 +84,7 @@ class EventSchema(BaseModel):
     mod_number: int
     status: str
     test_event: bool
+    priority: int
 
     class Config:
         orm_mode = True
@@ -125,6 +126,7 @@ class EventSchema(BaseModel):
         event_ven_ids = EventSchema.get_ven_ids(evt_xml)
         event_market_context = EventSchema.get_market_context(evt_xml)
         event_mod_number = EventSchema.get_mod_number(evt_xml)
+        event_priority = EventSchema.get_priority(evt_xml)
         event_status = EventSchema.get_status(evt_xml)
 
         start_offset = EventSchema.get_start_before_after(evt_xml)
@@ -147,6 +149,7 @@ class EventSchema(BaseModel):
             ven_ids=event_ven_ids,
             market_context=event_market_context,
             mod_number=event_mod_number,
+            priority=event_priority,
             status=event_status,
             test_event=event_test
         )
@@ -243,4 +246,8 @@ class EventSchema(BaseModel):
     @staticmethod
     def get_ven_ids(evt, ns_map=NS_A):
         return [e.text for e in evt.iterfind('ei:eiTarget/ei:venID', namespaces=ns_map)]
+
+    @staticmethod
+    def get_priority(evt, ns_map=NS_A):
+        return int(evt.findtext("ei:eventDescriptor/ei:priority", namespaces=ns_map) or 1)
 

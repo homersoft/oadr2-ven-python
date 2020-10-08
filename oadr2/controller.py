@@ -127,7 +127,7 @@ class EventController(object):
         '''
 
         highest_signal_val = 0
-        current_event_id = None
+        current_event = None
         remove_events = []  # to collect expired events
         now = datetime.utcnow()
 
@@ -172,13 +172,14 @@ class EventController(object):
                 )
 
                 if current_interval.level > highest_signal_val:
-                    highest_signal_val = current_interval.level
-                    current_event_id = evt.id
+                    if not current_event or evt.priority > current_event.priority:
+                        highest_signal_val = current_interval.level
+                        current_event = evt
 
             except Exception as ex:
                 logging.exception(f"Error parsing event: {evt.id}: {ex}")
 
-        return highest_signal_val, current_event_id, remove_events
+        return highest_signal_val, current_event.id if current_event else None, remove_events
 
     def _update_signal_level(self, signal_level):
         '''
