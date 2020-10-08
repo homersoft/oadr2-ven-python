@@ -283,7 +283,7 @@ class EventHandler(object):
             pyld.eiCreatedEvent(
                 ei.eiResponse(
                     ei.responseCode(code),
-                    pyld.requestID()),
+                    pyld.requestID(request_id)),
                 ei.venID(self.ven_id)))
 
         logging.debug("Error payload:\n%s",
