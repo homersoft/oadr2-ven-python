@@ -90,11 +90,17 @@ class EventSchema(BaseModel):
         orm_mode = True
 
     def get_current_interval(self, now=datetime.utcnow()) -> Union[SignalSchema, None]:
-        if self.start > now < self.end:
+        if self.start > now:  # event not started yet
+            return None
+
+        if self.end and now > self.end:  # event already ended
             return None
 
         previous_signal_end = self.start
         for signal in self.signals:
+            if not bool(schedule.duration_to_delta(signal.duration)[0]):
+                return signal
+
             current_signal_end = previous_signal_end + schedule.duration_to_delta(signal.duration)[0]
             if previous_signal_end < now <= current_signal_end:
                 return signal
