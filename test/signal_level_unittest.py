@@ -1,11 +1,11 @@
 import unittest
 from datetime import datetime, timedelta
+from os import remove
+from test.adr_event_generator import AdrEvent, AdrEventStatus
 
 from freezegun import freeze_time
-from os import remove
 
 from oadr2.poll import OpenADR2
-from test.adr_event_generator import AdrEventStatus, AdrEvent
 
 DB_FILENAME = "test.db"
 

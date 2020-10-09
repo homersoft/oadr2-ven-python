@@ -1,10 +1,11 @@
 from datetime import datetime
-from typing import List, Optional, Sequence, Dict, Union
+from typing import Dict, List, Optional, Sequence, Union
 
-from sqlalchemy import (Column, Float, ForeignKey, Integer, String, Boolean,
+from sqlalchemy import (Boolean, Column, Float, ForeignKey, Integer, String,
                         create_engine)
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import Session, relationship, sessionmaker
+
 from oadr2.schemas import EventSchema
 
 Base = declarative_base()
@@ -59,13 +60,24 @@ class Event(Base):
 
     @property
     def signals(self) -> List[Dict[str, Union[float, int, str]]]:
-        return [dict(duration=signal.duration, index=signal.index, level=signal.level) for signal in self._signals]
+        return [
+            dict(
+                duration=signal.duration,
+                index=signal.index,
+                level=signal.level
+            ) for signal in self._signals
+        ]
 
     @signals.setter
     def signals(self, value: List[Dict[str, Union[float, int, str]]]) -> None:
-        self._signals = [Signal(
-            event_id=self.id, index=signal["index"], duration=signal["duration"], level=signal["level"]
-        ) for signal in value]
+        self._signals = [
+            Signal(
+                event_id=self.id,
+                index=signal["index"],
+                duration=signal["duration"],
+                level=signal["level"]
+            ) for signal in value
+        ]
 
 
 class DBHandler:
@@ -77,7 +89,11 @@ class DBHandler:
                                 "cancellation_offset", "status", "priority", "test_event"}
 
     def get_active_events(self) -> List[EventSchema]:
-        return sorted([EventSchema.from_orm(evt) for evt in self.session.query(Event).all()], key=lambda evt: evt.start)
+        return sorted(
+            [
+                EventSchema.from_orm(evt) for evt in self.session.query(Event).all()
+            ], key=lambda evt: evt.start
+        )
 
     def update_event(self, event: EventSchema) -> None:
         self.remove_events([event.id])

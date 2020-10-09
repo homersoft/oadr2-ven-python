@@ -1,23 +1,18 @@
 # Event Handler class.
 # --------
 # Requires the python libXML wrapper "lxml" to function properly
-from oadr2 import database, memdb
-
 __author__ = "Thom Nichols <tnichols@enernoc.com>, Ben Summerton <bsummerton@enernoc.com>"
 
-import uuid
 import logging
 import uuid
 from typing import List
 
 from lxml import etree
 from lxml.builder import ElementMaker
-from datetime import datetime
-
-from oadr2 import schedule
 
 from oadr2 import eventdb
-from oadr2.schemas import NS_A, NS_B, OADR_PROFILE_20A, OADR_PROFILE_20B, EventSchema
+from oadr2.schemas import (NS_A, NS_B, OADR_PROFILE_20A, OADR_PROFILE_20B,
+                           EventSchema)
 
 __author__ = "Thom Nichols <tnichols@enernoc.com>, Ben Summerton <bsummerton@enernoc.com>"
 
@@ -159,7 +154,8 @@ class EventHandler(object):
 
             if self.market_contexts and (new_event.market_context not in self.market_contexts):
                 logging.info(
-                    f"Opting out of event {new_event.id} - market context {new_event.market_context} does not match"
+                    f"Opting out of event {new_event.id}:"
+                    f"market context {new_event.market_context} does not match"
                 )
                 opt = 'optOut'
                 status = '405'

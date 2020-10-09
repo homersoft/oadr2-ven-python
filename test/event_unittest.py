@@ -4,12 +4,12 @@ __author__ = 'Benjamin N. Summerton <bsummerton@enernoc.com>'
 # NOTE: Make sure to run this file from the root directory of the project
 import os
 import unittest
+from os import remove
+from test.util import read_xml
 
 from lxml import etree
 
 from oadr2 import event
-from test.util import read_xml
-from os import remove
 
 xml_dir = os.path.join(os.path.dirname(__file__), 'xml_files')
 

@@ -1,15 +1,13 @@
 from datetime import datetime, timedelta
+from test.adr_event_generator import AdrEvent, AdrEventStatus, generate_payload
 from unittest import mock
 
 import pytest
-
-from oadr2 import controller, event
-from oadr2.schemas import NS_A
-from oadr2.poll import OpenADR2
 from freezegun import freeze_time
 
-from test.adr_event_generator import AdrEvent, AdrEventStatus, generate_payload
-
+from oadr2 import controller, event
+from oadr2.poll import OpenADR2
+from oadr2.schemas import NS_A
 
 TEST_DB_ADDR = "%s/test2.db"
 
@@ -215,11 +213,11 @@ def test_21a_ven_id_validation(tmpdir):
 
 def test_21b_vtn_id_validation(tmpdir):
     expected_event = AdrEvent(
-                id="FooEvent",
-                start=datetime.utcnow() + timedelta(seconds=60),
-                signals=[dict(index=0, duration=timedelta(seconds=10), level=1.0)],
-                status=AdrEventStatus.PENDING
-            )
+        id="FooEvent",
+        start=datetime.utcnow() + timedelta(seconds=60),
+        signals=[dict(index=0, duration=timedelta(seconds=10), level=1.0)],
+        status=AdrEventStatus.PENDING
+    )
     db_mock = mock.MagicMock()
     event_handler = event.EventHandler(
         "VEN_ID",
@@ -303,7 +301,7 @@ def test_22_target_validation(expected_event, tmpdir):
 
 
 @pytest.mark.skip(reason="No need to test")
-def test_23_oadrRequestEvent(tmpdir):
+def test_23_oadrRequestEvent():
     """
     VEN/VTN, EiEvent Service, oadrRequestEvent Payload
     oadrRequestEvent many only be sent in the VEN to VTN direction
@@ -312,7 +310,7 @@ def test_23_oadrRequestEvent(tmpdir):
 
 
 @pytest.mark.skip(reason="Covered in other tests")
-def test_25_error_reporting(tmpdir):
+def test_25_error_reporting():
     """
     VEN/VTN, EiEvent Service
     VTN and VEN: The following rules must be followed with respect to
@@ -357,7 +355,7 @@ def test_30_start_time_randomization(tmpdir):
 
 
 @pytest.mark.skip(reason="Covered in other tests")
-def test_31_active_period_subelements(tmpdir):
+def test_31_active_period_subelements():
     """
     # VEN, EiEvent Service, oadrDistributeEvent Payload
     # The VEN must recognize and act upon values specified in the subelements
@@ -373,7 +371,7 @@ def test_31_active_period_subelements(tmpdir):
 
 
 @pytest.mark.skip(reason="Covered in other tests")
-def test_32_intervals_subelements(tmpdir):
+def test_32_intervals_subelements():
     """
     VEN/VTN, EiEvent Service, oadrDistributeEvent Payload
     The VEN must recognize and act upon values specified in the subelements
@@ -385,7 +383,7 @@ def test_32_intervals_subelements(tmpdir):
 
 
 @pytest.mark.skip(reason="Covered in other tests")
-def test_31_event_error_indication(tmpdir):
+def test_31_event_error_indication():
     """
     VEN/VTN
     The implementation must provide an application layer error indication as a
@@ -463,7 +461,7 @@ def test_37_push_pull_model():
 
 
 @pytest.mark.skip(reason="Covered in other tests")
-def test_41_request_id(tmpdir):
+def test_41_request_id():
     """
     VEN/VTN, EiEvent Service, oadrDistributeEvent Payload
     The VTN must send a requestID value as part of the oadrDistributeEvent payload.
@@ -505,7 +503,7 @@ def test_42_request_id(tmpdir):
 
 
 @pytest.mark.skip(reason="No need to test")
-def test_43_request_id_uniqueness(tmpdir):
+def test_43_request_id_uniqueness():
     """
     VEN, EiEvent Service, oadrDistributeEvent Payload
     The VEN must make no assumptions regarding the uniqueness of requestID values
@@ -515,7 +513,7 @@ def test_43_request_id_uniqueness(tmpdir):
 
 
 @pytest.mark.skip(reason="No need to test")
-def test_44_empty_request_id(tmpdir):
+def test_44_empty_request_id():
     """
     VEN/VTN
     With the exception of oadrDistributeEvent and oadrCreatedEvent payloads,
@@ -526,7 +524,7 @@ def test_44_empty_request_id(tmpdir):
 
 
 @pytest.mark.skip(reason="No need to test")
-def test_45_schema_location(tmpdir):
+def test_45_schema_location():
     """
     VEN/VTN
     Messages sent between VENs and VTNs shall
@@ -537,7 +535,7 @@ def test_45_schema_location(tmpdir):
 
 
 @pytest.mark.skip(reason="Covered in other tests")
-def test_46_optional_elements(tmpdir):
+def test_46_optional_elements():
     """
     VEN/VTN
     Optional elements do not need to be included in outbound payloads, but if
@@ -648,7 +646,7 @@ def test_48_payload_error_indication(expected_event, tmpdir):
 
 
 @pytest.mark.skip(reason="No need to test")
-def test_50_distributed_event(tmpdir):
+def test_50_distributed_event():
     """
     VEN/VTN, EiEvent Service, oadrDistributeEvent Payload
     In both the push and pull model, oadrDistributeEvent MUST contain all
@@ -661,7 +659,7 @@ def test_50_distributed_event(tmpdir):
 
 
 @pytest.mark.skip(reason="No need to test")
-def test_52_cancellation_acknowledgment(tmpdir):
+def test_52_cancellation_acknowledgment():
     """
     VTN, EiEvent Service, oadrDistributeEvent Payload
     If a VTN requests acknowledgment of a cancelled event with
@@ -674,7 +672,7 @@ def test_52_cancellation_acknowledgment(tmpdir):
 
 
 @pytest.mark.skip(reason="No need to test")
-def test_53_http_transport(tmpdir):
+def test_53_http_transport():
     """
     VEN/VTN
     Shall implement the simple http transport. Including support for the
@@ -687,7 +685,7 @@ def test_53_http_transport(tmpdir):
 
 
 @pytest.mark.skip(reason="No need to test")
-def test_54_polling_frequency(tmpdir):
+def test_54_polling_frequency():
     """
     VEN
     HTTP PULL VEN’s MUST be able to guarantee worst case latencies for the
@@ -702,7 +700,7 @@ def test_54_polling_frequency(tmpdir):
     assert False
 
 
-def test_55_max_polling_frequency(tmpdir):
+def test_55_max_polling_frequency():
     """
     VEN
     HTTP PULL VEN’s MUST NOT poll the VTN on average greater than some
@@ -888,7 +886,7 @@ def test_60_new_cancelled_event(tmpdir):
 
 
 @pytest.mark.skip(reason="Covered in other tests")
-def test_61_implied_cancellation(tmpdir):
+def test_61_implied_cancellation():
     """
     VEN, EiEvent Service, oadrDistributeEvent Payload
     If the VTN sends the oadrDistributeEvent payload and it does not contain
@@ -902,7 +900,7 @@ def test_61_implied_cancellation(tmpdir):
 
 
 @pytest.mark.skip(reason="Covered in other tests")
-def test_62_response(tmpdir):
+def test_62_response():
     """
     VEN, EiEvent Service, oadrDistributeEvent, oadrCreatedEvent Payload
     The VEN must process EVERY oadrEvent event message (new, modified,
@@ -922,7 +920,7 @@ def test_62_response(tmpdir):
 
 
 @pytest.mark.skip(reason="Covered in other tests")
-def test_64_polling_cycle(tmpdir):
+def test_64_polling_cycle():
     """
     VEN, EiEvent Service
     A pull VEN shall respond to all received events before initiating another
@@ -963,7 +961,7 @@ def test_65_cancellation_time_randomization(tmpdir):
 
 
 @pytest.mark.skip(reason="No need to test")
-def test_66_cancelled_event_handling(tmpdir):
+def test_66_cancelled_event_handling():
     """
     VEN/VTN, EiEvent Service, oadrDistributeEvent, Payload
     If a VTN sends an oadrDistributeEvent payload containing an event with a
@@ -977,7 +975,7 @@ def test_66_cancelled_event_handling(tmpdir):
 
 
 @pytest.mark.skip(reason="Cant test here")
-def test_67_tls_support(tmpdir):
+def test_67_tls_support():
     """
     VEN/VTN
     VTN and VEN shall support TLS 1.0 and may support higher versions of
@@ -1006,7 +1004,7 @@ def test_67_tls_support(tmpdir):
 
 
 @pytest.mark.skip(reason="Cant test here")
-def test_68_cert_support(tmpdir):
+def test_68_cert_support():
     """
     VEN/VTN
     Both VTNs and VENs shall support client and server X.509v3 certificates. A

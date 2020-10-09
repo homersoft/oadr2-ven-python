@@ -1,9 +1,11 @@
-from datetime import datetime, timedelta
 from dataclasses import dataclass
+from datetime import datetime, timedelta
 from enum import Enum
-from typing import List, Optional, Union, Dict
-from oadr2.schemas import EventSchema, SignalSchema
+from typing import Dict, List, Optional, Union
+
 from lxml import etree
+
+from oadr2.schemas import EventSchema, SignalSchema
 
 
 def format_duration(duration: Union[timedelta, None]) -> str:
@@ -103,7 +105,13 @@ class AdrEvent:
         self.signal_name = signal_name
 
     def to_obj(self):
-        _signals = [dict(index=s["index"], level=s["level"], duration=format_duration(s["duration"])) for s in self.signals]
+        _signals = [
+            dict(
+                index=s["index"],
+                level=s["level"],
+                duration=format_duration(s["duration"])
+            ) for s in self.signals
+        ]
         return EventSchema(
             id=self.id,
             vtn_id=self.vtn_id,

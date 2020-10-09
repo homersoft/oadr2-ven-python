@@ -1,14 +1,12 @@
 from datetime import datetime, timedelta
+from test.adr_event_generator import AdrEvent, AdrEventStatus, generate_payload
 from unittest import mock
 
 import pytest
+from freezegun import freeze_time
 
 from oadr2 import controller, event
 from oadr2.schemas import NS_A
-from freezegun import freeze_time
-
-from test.adr_event_generator import AdrEvent, AdrEventStatus, generate_payload
-
 
 TEST_DB_ADDR = "%s/test2.db"
 
@@ -542,5 +540,3 @@ def test_explicite_cancellation(tmpdir):
         active_events = event_handler.get_active_events()
 
         assert [test_event.to_obj()] == active_events
-
-

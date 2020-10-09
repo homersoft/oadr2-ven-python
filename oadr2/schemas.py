@@ -1,9 +1,10 @@
-from pydantic import BaseModel
 from datetime import datetime
 from typing import List, Optional, Union
-from lxml import etree
-from oadr2 import schedule
 
+from lxml import etree
+from pydantic import BaseModel
+
+from oadr2 import schedule
 
 # Stuff for the 2.0a spec of OpenADR
 OADR_XMLNS_A = 'http://openadr.org/oadr-2.0a/2012/07'
@@ -105,7 +106,6 @@ class EventSchema(BaseModel):
             if previous_signal_end < now <= current_signal_end:
                 return signal
             previous_signal_end = current_signal_end
-        # TODO: neverending events
 
     def cancel(self, random_end=False):
         if self.status == "active" or random_end:
@@ -116,15 +116,18 @@ class EventSchema(BaseModel):
 
     @staticmethod
     def from_xml(evt_xml: etree.XML):
-        # print("###")
-        # print(etree.tostring(evt_xml, pretty_print=True).decode("utf-8"))
         event_id = EventSchema.get_event_id(evt_xml)
         event_original_start = EventSchema.get_active_period_start(evt_xml)
         signal_list = EventSchema.get_signals(evt_xml)
         event_signals = (
-            [SignalSchema(duration=evt[0], index=int(evt[1]), level=float(evt[2])) for evt in signal_list]
-            if signal_list
-            else []
+            [
+                SignalSchema(
+                    duration=evt[0],
+                    index=int(evt[1]),
+                    level=float(evt[2])
+                ) for evt in signal_list
+            ]
+            if signal_list else []
         )
         event_group_ids = EventSchema.get_group_ids(evt_xml)
         event_resource_ids = EventSchema.get_resource_ids(evt_xml)
@@ -170,7 +173,9 @@ class EventSchema(BaseModel):
 
     @staticmethod
     def get_test_event(evt, ns_map=NS_A):
-        test_event = evt.findtext("ei:eventDescriptor/ei:testEvent", namespaces=ns_map)
+        test_event = evt.findtext(
+            "ei:eventDescriptor/ei:testEvent", namespaces=ns_map
+        )
         if not test_event or test_event.lower() == "false":
             return False
         else:
@@ -184,7 +189,10 @@ class EventSchema(BaseModel):
 
     @staticmethod
     def get_market_context(evt, ns_map=NS_A):
-        return evt.findtext("ei:eventDescriptor/ei:eiMarketContext/emix:marketContext", namespaces=ns_map)
+        return evt.findtext(
+            "ei:eventDescriptor/ei:eiMarketContext/emix:marketContext",
+            namespaces=ns_map
+        )
 
     @staticmethod
     def get_current_signal_value(evt, ns_map=NS_A):
@@ -196,7 +204,9 @@ class EventSchema(BaseModel):
     def get_signals(evt, ns_map=NS_A):
         simple_signal = None
         signals = []
-        for signal in evt.iterfind('ei:eiEventSignals/ei:eiEventSignal', namespaces=ns_map):
+        for signal in evt.iterfind(
+                'ei:eiEventSignals/ei:eiEventSignal', namespaces=ns_map
+        ):
             signal_name = signal.findtext('ei:signalName', namespaces=ns_map)
             signal_type = signal.findtext('ei:signalType', namespaces=ns_map)
 
@@ -230,12 +240,16 @@ class EventSchema(BaseModel):
 
     @staticmethod
     def get_start_before_after(evt, ns_map=NS_A):
-        return (evt.findtext(
-            'ei:eiActivePeriod/xcal:properties/xcal:tolerance/xcal:tolerate/xcal:startbefore',
-            namespaces=ns_map),
-                evt.findtext(
-                    'ei:eiActivePeriod/xcal:properties/xcal:tolerance/xcal:tolerate/xcal:startafter',
-                    namespaces=ns_map))
+        return (
+            evt.findtext(
+                'ei:eiActivePeriod/xcal:properties/xcal:tolerance/xcal:tolerate/xcal:startbefore',
+                namespaces=ns_map
+            ),
+            evt.findtext(
+                'ei:eiActivePeriod/xcal:properties/xcal:tolerance/xcal:tolerate/xcal:startafter',
+                namespaces=ns_map
+            )
+        )
 
     @staticmethod
     def get_group_ids(evt, ns_map=NS_A):
@@ -256,4 +270,3 @@ class EventSchema(BaseModel):
     @staticmethod
     def get_priority(evt, ns_map=NS_A):
         return int(evt.findtext("ei:eventDescriptor/ei:priority", namespaces=ns_map) or 1)
-

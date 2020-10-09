@@ -24,10 +24,13 @@ class EventController(object):
     _exit -- A threading.Thread() object
     '''
 
-    def __init__(self, event_handler,
+    def __init__(
+            self,
+            event_handler,
             signal_changed_callback=None,
             start_thread=True,
-            control_loop_interval=CONTROL_LOOP_INTERVAL):
+            control_loop_interval=CONTROL_LOOP_INTERVAL
+    ):
         '''
         Initialize the Event Controller
 
@@ -55,8 +58,9 @@ class EventController(object):
 
         if start_thread:
             self.control_thread = threading.Thread(
-                    name='oadr2.control',
-                    target=self._control_event_loop)
+                name='oadr2.control',
+                target=self._control_event_loop
+            )
             self.control_thread.daemon = True
             self.control_thread.start()
 
@@ -74,7 +78,8 @@ class EventController(object):
         '''
 
         signal_level, event_id, expired_events = self._calculate_current_event_status(
-                self.event_handler.get_active_events() )
+            self.event_handler.get_active_events()
+        )
 
         return signal_level, event_id
 
@@ -111,7 +116,7 @@ class EventController(object):
 
         events -- List of lxml.etree.ElementTree objects (with OpenADR 2.0 tags)
         '''
-        signal_level, evt_id, remove_events = self._calculate_current_event_status(events)
+        signal_level, _, remove_events = self._calculate_current_event_status(events)
 
         if remove_events:
             # remove any events that we've detected have ended or been cancelled.
@@ -213,8 +218,7 @@ class EventController(object):
         '''
         The default callback just logs a message.
         '''
-        logging.debug("Signal level changed from %f to %f",
-                old_level, new_level )
+        logging.debug(f"Signal level changed from {old_level} to {new_level}")
 
     def exit(self):
         '''
