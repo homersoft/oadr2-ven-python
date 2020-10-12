@@ -2,8 +2,10 @@
 
 __author__ = 'Benjamin N. Summerton <bsummerton@enernoc.com>'
 
-import logging, threading
-from . import event, control
+import logging
+import threading
+
+from oadr2 import controller, event
 
 
 class BaseHandler(object):
@@ -20,8 +22,8 @@ class BaseHandler(object):
 
     def __init__(self, event_config, control_opts={}):
         '''
-        base class initializer, creates an `event.EventHandler` as 
-        `self.event_handler` and a `control.EventController` as 
+        base class initializer, creates an `event.EventHandler` as
+        `self.event_handler` and a `control.EventController` as
         `self.event_controller
 
         event_config -- A dictionary containing keyword arugments for the
@@ -31,7 +33,7 @@ class BaseHandler(object):
 
         # Get an EventHandler and an EventController
         self.event_handler = event.EventHandler(**event_config)
-        self.event_controller = control.EventController(self.event_handler, **control_opts)
+        self.event_controller = controller.EventController(self.event_handler, **control_opts)
 
         # Add an exit thread for the module
         self._exit = threading.Event()
@@ -49,5 +51,3 @@ class BaseHandler(object):
         self._exit.set()
 
         logging.info('Shutdown base handler.')
-
-

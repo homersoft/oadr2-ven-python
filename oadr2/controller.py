@@ -1,9 +1,9 @@
-__author__ = 'Benjamin N. Summerton <bsummerton@enernoc.com>'
-
 import logging
-import time
 import threading
-from oadr2 import event, schedule
+from datetime import datetime
+from typing import List
+
+from oadr2.schemas import EventSchema
 
 CONTROL_LOOP_INTERVAL = 30   # update control state every X second
 
@@ -11,7 +11,7 @@ CONTROL_LOOP_INTERVAL = 30   # update control state every X second
 # Used by poll.OpenADR2 to handle events
 class EventController(object):
     '''
-    EventController tracks active events and fires a callback when event levels have 
+    EventController tracks active events and fires a callback when event levels have
     changed.
 
     Member Variables:
@@ -24,11 +24,13 @@ class EventController(object):
     _exit -- A threading.Thread() object
     '''
 
-
-    def __init__(self, event_handler, 
-            signal_changed_callback = None,
-            start_thread = True,
-            control_loop_interval = CONTROL_LOOP_INTERVAL):
+    def __init__(
+            self,
+            event_handler,
+            signal_changed_callback=None,
+            start_thread=True,
+            control_loop_interval=CONTROL_LOOP_INTERVAL
+    ):
         '''
         Initialize the Event Controller
 
@@ -38,7 +40,7 @@ class EventController(object):
         '''
 
         self.event_handler = event_handler
-        self.current_signal_level = 0 
+        self.current_signal_level = 0
 
         self.signal_changed_callback = signal_changed_callback \
                 if signal_changed_callback is not None \
@@ -56,11 +58,11 @@ class EventController(object):
 
         if start_thread:
             self.control_thread = threading.Thread(
-                    name='oadr2.control',
-                    target=self._control_event_loop)
+                name='oadr2.control',
+                target=self._control_event_loop
+            )
             self.control_thread.daemon = True
             self.control_thread.start()
-
 
     def events_updated(self):
         '''
@@ -69,7 +71,6 @@ class EventController(object):
         '''
         self._control_loop_signal.set()
 
-
     def get_current_signal_level(self):
         '''
         Return the signal level and event ID of the currently active event.
@@ -77,10 +78,10 @@ class EventController(object):
         '''
 
         signal_level, event_id, expired_events = self._calculate_current_event_status(
-                self.event_handler.get_active_events() )
+            self.event_handler.get_active_events()
+        )
 
         return signal_level, event_id
-
 
     def _control_event_loop(self):
         '''
@@ -108,7 +109,6 @@ class EventController(object):
 
         logging.info("Control loop exiting.")
 
-    
     def _update_control(self, events):
         '''
         Called by `control_event_loop()` to determine the current signal level.
@@ -116,88 +116,80 @@ class EventController(object):
 
         events -- List of lxml.etree.ElementTree objects (with OpenADR 2.0 tags)
         '''
-        signal_level, evt_id, remove_events = self._calculate_current_event_status(events)
+        signal_level, _, remove_events = self._calculate_current_event_status(events)
 
         if remove_events:
             # remove any events that we've detected have ended or been cancelled.
             # TODO callback for expired events??
             logging.debug("Removing completed or cancelled events: %s", remove_events)
             self.event_handler.remove_events(remove_events)
-        
+
         return signal_level
 
-
-    def _calculate_current_event_status(self, events):
+    def _calculate_current_event_status(self, events: List[EventSchema]):
         '''
         returns a 3-tuple of (current_signal_level, current_event_id, remove_events=[])
         '''
 
         highest_signal_val = 0
-        current_event_id = None
+        current_event = None
         remove_events = []  # to collect expired events
+        now = datetime.utcnow()
 
-        for e in events:
+        for evt in events:
             try:
-                e_id = event.get_event_id(e, self.event_handler.ns_map)
-                e_mod_num = event.get_mod_number(e, self.event_handler.ns_map)
-                e_status = event.get_status(e, self.event_handler.ns_map)
-
-                if e_status is None:
-                    logging.debug("Ignoring event %s - no valid status", e_id)
+                if evt.status is None:
+                    logging.debug(f"Ignoring event {evt.id} - no valid status")
                     continue
 
-                if e_status.lower() == "cancelled":
-                    logging.debug("Event %s(%d) has been cancelled", e_id, e_mod_num)
-                    remove_events.append(e_id)
+                if evt.test_event:
+                    logging.debug(f"Ignoring event {evt.id} - test event")
                     continue
 
-                if not self.event_handler.check_target_info(e):
-                    logging.debug("Ignoring event %s - no target match", e_id)
+                if evt.status.lower() == "cancelled" and datetime.utcnow() > evt.end:
+                    logging.debug(f"Event {evt.id}({evt.mod_number}) has been cancelled")
+                    remove_events.append(evt.id)
                     continue
 
-                event_start_dttm = event.get_active_period_start(e, self.event_handler.ns_map)
-                signals = event.get_signals(e, self.event_handler.ns_map)
-
-                if signals is None:
-                    logging.debug("Ignoring event %s - no valid signals", e_id)
+                if not evt.signals:
+                    logging.debug(f"Ignoring event {evt.id} - no valid signals")
                     continue
 
-                logging.debug("All signals: %r", signals)
-                intervals = [s[0] for s in signals]
-                current_interval = schedule.choose_interval( event_start_dttm, intervals )
-
+                current_interval = evt.get_current_interval(now=now)
                 if current_interval is None:
-                    logging.debug("Event %s(%d) has ended", e_id, e_mod_num)
-                    remove_events.append(e_id)
-                    continue
+                    if evt.end < now:
+                        logging.debug(f"Event {evt.id}({evt.mod_number}) has ended")
+                        remove_events.append(evt.id)
+                        continue
 
-                if current_interval < 0:
-                    logging.debug("Event %s(%d) has not started yet.", e_id, e_mod_num)
-                    continue
+                    elif evt.start > now:
+                        logging.debug(f"Event {evt.id}({evt.mod_number}) has not started yet.")
+                        continue
 
-                logging.debug('---------- chose interval %d', current_interval)
-                _, interval_uid, signal_level = signals[current_interval]
-#                signal_level = event.get_current_signal_value(e, self.event_handler.ns_map)
+                    else:
+                        logging.warning(f"Error getting current interval for event {evt.id}({evt.mod_number}):"
+                                        f"Signals: {evt.signals}")
+                        continue
 
-                logging.debug('Control loop: Evt ID: %s(%s); Interval: %s; Current Signal: %s',
-                        e_id, e_mod_num, interval_uid, signal_level )
-                
-                signal_level = float(signal_level) if signal_level is not None else 0
+                logging.debug(
+                    f'Control loop: Evt ID: {evt.id}({evt.mod_number}); '
+                    f'Interval: {current_interval.index}; Current Signal: {current_interval.level}'
+                )
 
-                if signal_level > highest_signal_val:
-                    highest_signal_val = signal_level
-                    current_event_id = e_id
+                if current_interval.level > highest_signal_val:
+                    if not current_event or evt.priority > current_event.priority:
+                        highest_signal_val = current_interval.level
+                        current_event = evt
 
-            except Exception as e:
-                logging.exception("Error parsing event: %s", e)
+            except Exception as ex:
+                logging.exception(f"Error parsing event: {evt.id}: {ex}")
 
-        return highest_signal_val, current_event_id, remove_events
-    
-    
+        return highest_signal_val, current_event.id if current_event else None, remove_events
+
     def _update_signal_level(self, signal_level):
         '''
         Called once each control interval with the 'current' signal level.
-        If the signal level has changed from `current_signal_level`, this 
+        If the signal level has changed from `current_signal_level`, this
         calls `self.signal_changed_callback(current_signal_level, new_signal_level)`
         and then sets `self.current_signal_level = new_signal_level`.
 
@@ -215,21 +207,18 @@ class EventController(object):
 
         try:
             self.signal_changed_callback(self.current_signal_level, signal_level)
-        
+
         except Exception as ex:
             logging.exception("Error from callback! %s", ex)
 
         self.current_signal_level = signal_level
         return True
 
-
     def default_signal_callback(self, old_level, new_level):
         '''
         The default callback just logs a message.
         '''
-        logging.debug("Signal level changed from %f to %f", 
-                old_level, new_level )
-
+        logging.debug(f"Signal level changed from {old_level} to {new_level}")
 
     def exit(self):
         '''
@@ -238,4 +227,3 @@ class EventController(object):
         self._exit.set()
         self._control_loop_signal.set()  # interrupt sleep
         self.control_thread.join(2)
-

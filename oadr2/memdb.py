@@ -1,4 +1,4 @@
-from typing import NamedTuple, Dict, Sequence, Tuple, Optional
+from typing import Dict, NamedTuple, Optional, Sequence, Tuple
 
 EventEntry = NamedTuple("EventEntry", (("vtn_id", str), ("mod_num", int), ("raw_xml", str)))
 

@@ -7,11 +7,11 @@
 # NOTE: Make sure to run this file from the root directory of the project
 import os
 import unittest
+from test.util import read_xml
 
 from lxml import etree
 
 from oadr2 import event
-from test.util import read_xml
 
 xml_dir = os.path.join(os.path.dirname(__file__), 'xml_files')
 

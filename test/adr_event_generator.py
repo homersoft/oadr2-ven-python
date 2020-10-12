@@ -1,27 +1,16 @@
-from datetime import datetime, timedelta
 from dataclasses import dataclass
+from datetime import datetime, timedelta
 from enum import Enum
-import random
-import string
-import operator
-from functools import reduce
-from typing import List, Optional
+from typing import Dict, List, Optional, Union
 
 from lxml import etree
 
-
-def random_uid() -> str:
-    chars = [x for x in string.ascii_lowercase] + [str(x) for x in range(10)]
-    series_lengths = [8, 4, 4, 4, 12]
-
-    def random_string(length):
-        return ''.join(random.choice(chars) for _ in range(length))
-
-    uid = "-".join(random_string(x) for x in series_lengths)
-    return uid
+from oadr2.schemas import EventSchema, SignalSchema
 
 
-def format_duration(duration: timedelta) -> str:
+def format_duration(duration: Union[timedelta, None]) -> str:
+    if not duration:
+        return "PT0M"
     hours, remainder = divmod(duration.seconds, 3600)
     minutes, seconds = divmod(remainder, 60)
     return f"P0Y0M0DT{hours}H{minutes}M{seconds}S"
@@ -40,12 +29,9 @@ class AdrEventStatus(Enum):
 
 @dataclass
 class AdrInterval:
-    value: float
+    index: int
+    level: float
     duration: timedelta
-
-    def __post_init__(self):
-        self.uid = random_uid()
-        self.start_time: Optional[datetime] = None
 
     def to_xml(self):
         return f"""
@@ -54,136 +40,187 @@ class AdrInterval:
             <ical:duration>{format_duration(self.duration)}</ical:duration>
           </ical:duration>
           <ical:uid>
-            <ical:text>{self.uid}</ical:text>
+            <ical:text>{self.index}</ical:text>
           </ical:uid>
           <ei:signalPayload>
             <ei:payloadFloat>
-              <ei:value>{self.value}</ei:value>
+              <ei:value>{self.level}</ei:value>
             </ei:payloadFloat>
           </ei:signalPayload>
         </ei:interval>"""
 
 
-@dataclass
 class AdrEvent:
-    start_time: datetime
-    status: AdrEventStatus
-    intervals: List[AdrInterval]
+    def __init__(
+            self,
+            id: Union[str, None],
+            start: datetime,
+            signals: List[Dict[str, Union[float, int, timedelta]]],
+            status: AdrEventStatus,
+            mod_number: Optional[int] = 0,
+            end: Optional[datetime] = None,
+            start_before: Optional[timedelta] = None,
+            start_after: Optional[timedelta] = None,
+            original_start: datetime = None,
+            cancellation_offset: timedelta = None,
+            group_ids: Optional[List[str]] = None,
+            resource_ids: Optional[List[str]] = None,
+            party_ids: Optional[List[str]] = None,
+            ven_ids: Optional[List[str]] = ['VEN_ID'],
+            vtn_id: Optional[str] = "TH_VTN",
+            market_context: Optional[str] = "http://market.context",
+            test_event: bool = False,
+            priority: int = 1,
+            response_required: bool = True,
+            signal_name: str = "simple"
+    ):
 
-    def __post_init__(self):
-        self.event_uid = random_uid()
-        self.signal_uid = random_uid()
-        self.fill_intervals_start_times()
+        self.id = id
+        self.start = start
+        self.original_start = original_start or start
 
-    def fill_intervals_start_times(self):
-        start_time = self.start_time
-        for interval in self.intervals:
-            interval.start_time = start_time
-            start_time += interval.duration
+        self.cancellation_offset = cancellation_offset
+        self.raw_signals = [signal for signal in signals]
+        self.signals = signals
+        self.intervals = [AdrInterval(**signal) for signal in self.signals]
+        self.duration = timedelta()
+        for signal in self.signals:
+            self.duration += signal["duration"]
+        self.end = end or self.start + self.duration
 
-    @property
-    def overall_duration(self) -> timedelta:
-        intervals_durations = [i.duration for i in self.intervals]
-        return reduce(operator.add, intervals_durations, timedelta(seconds=0))
+        self.group_ids = group_ids
+        self.resource_ids = resource_ids
+        self.party_ids = party_ids
+        self.ven_ids = ven_ids
+        self.mod_number = mod_number
+        self.status = status
+        self.start_before = start_before
+        self.start_after = start_after
+        self.vtn_id = vtn_id
+        self.market_context = market_context
+        self.created_date = datetime(2020, 1, 1, 10, 10)
+        self.test_event = test_event
+        self.priority = priority
+        self.response_required = response_required
+        self.signal_name = signal_name
 
-    @property
-    def stop_time(self) -> datetime:
-        return self.start_time + self.overall_duration
-
-    def interval_start_time(self, n):
-        intervals_durations = [i.duration for i in self.intervals[:n]]
-        return self.start_time + reduce(operator.add, intervals_durations, timedelta(seconds=0))
-
-    def to_etree(self):
-        utf8_parser = etree.XMLParser(encoding="utf-8")
-        return etree.fromstring(self.to_xml().encode("utf-8"), parser=utf8_parser)
+    def to_obj(self):
+        _signals = [
+            dict(
+                index=s["index"],
+                level=s["level"],
+                duration=format_duration(s["duration"])
+            ) for s in self.signals
+        ]
+        return EventSchema(
+            id=self.id,
+            vtn_id=self.vtn_id,
+            mod_number=self.mod_number,
+            start=self.start,
+            original_start=self.original_start,
+            end=self.end,
+            signals=[SignalSchema(**signal) for signal in _signals],
+            status=self.status.value,
+            cancellation_offset=format_duration(self.cancellation_offset) if self.cancellation_offset else None,
+            ven_ids=self.ven_ids,
+            market_market_context=self.market_context,
+            group_ids=self.group_ids,
+            resource_ids=self.resource_ids,
+            party_ids=self.party_ids,
+            test_event=self.test_event,
+            priority=self.priority
+        )
 
     def to_xml(self):
-        intervals_xml = "".join([i.to_xml() for i in self.intervals])
+        intervals_xml = "".join([interval.to_xml() for interval in self.intervals])
+        start_after = f"""<ical:tolerance>
+        <ical:tolerate>
+          <ical:startafter>{format_duration(self.start_after)}</ical:startafter>
+        </ical:tolerate>
+      </ical:tolerance>""" if self.start_after else ""
+
+        ven_xml = f"<ei:venID>{','.join(self.ven_ids)}</ei:venID>" if self.ven_ids else ""
+        group_xml = f"<ei:groupID>{','.join(self.group_ids)}</ei:groupID>" if self.group_ids else ""
+        resource_xml = f"<ei:resourceID>{','.join(self.resource_ids)}</ei:resourceID>" if self.resource_ids else ""
+        party_xml = f"<ei:partyID>{','.join(self.party_ids)}</ei:partyID>" if self.party_ids else ""
+
         return f"""
-<ei:eiEvent
-  xmlns:ei="http://docs.oasis-open.org/ns/energyinterop/201110"
+<oadrEvent>
+  <ei:eiEvent>
+    <ei:eventDescriptor>
+      <ei:eventID>{self.id}</ei:eventID>
+      <ei:modificationNumber>{self.mod_number}</ei:modificationNumber>
+      <ei:priority>{self.priority}</ei:priority>
+      <ei:eiMarketContext>
+        <emix:marketContext>{self.market_context}</emix:marketContext>
+      </ei:eiMarketContext>
+      <ei:createdDateTime>{format_datetime(self.created_date)}</ei:createdDateTime>
+      <ei:eventStatus>{self.status.value}</ei:eventStatus>
+      <ei:testEvent>{self.test_event}</ei:testEvent>
+      <ei:vtnComment></ei:vtnComment>
+    </ei:eventDescriptor>
+    <ei:eiActivePeriod>
+      <ical:properties>
+        <ical:dtstart>
+          <ical:date-time>{format_datetime(self.start)}</ical:date-time>
+        </ical:dtstart>
+        <ical:duration>
+          <ical:duration>{format_duration(self.duration)}</ical:duration>
+        </ical:duration>
+        {start_after}
+        <ei:x-eiNotification>
+          <ical:duration>P0Y0M0DT0H0M0S</ical:duration>
+        </ei:x-eiNotification>
+      </ical:properties>
+      <ical:components xsi:nil="true"/>
+    </ei:eiActivePeriod>
+    <ei:eiEventSignals>
+      <ei:eiEventSignal>
+        <strm:intervals>
+          {intervals_xml}
+        </strm:intervals>
+        <ei:signalName>{self.signal_name}</ei:signalName>
+        <ei:signalType>level</ei:signalType>
+        <ei:signalID>SignalID</ei:signalID>
+        <ei:currentValue>
+          <ei:payloadFloat>
+            <ei:value>0.0</ei:value>
+          </ei:payloadFloat>
+        </ei:currentValue>
+      </ei:eiEventSignal>
+    </ei:eiEventSignals>
+    <ei:eiTarget>
+      {ven_xml}
+      {party_xml}
+      {resource_xml}
+      {group_xml}
+    </ei:eiTarget>
+  </ei:eiEvent>
+  <oadrResponseRequired>{"always" if self.response_required else "never"}</oadrResponseRequired>
+</oadrEvent>
+"""
+
+
+def generate_payload(event_list, vtn_id="TH_VTN"):
+    evt_xml = "".join([event.to_xml() for event in event_list])
+    template = f"""
+<oadrDistributeEvent  
   xmlns="http://openadr.org/oadr-2.0a/2012/07"
+  xmlns:ei="http://docs.oasis-open.org/ns/energyinterop/201110"
   xmlns:emix="http://docs.oasis-open.org/ns/emix/2011/06"
   xmlns:pyld="http://docs.oasis-open.org/ns/energyinterop/201110/payloads"
   xmlns:strm="urn:ietf:params:xml:ns:icalendar-2.0:stream"
   xmlns:ical="urn:ietf:params:xml:ns:icalendar-2.0"
-  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
-  <ei:eventDescriptor>
-    <ei:eventID>{self.event_uid}</ei:eventID>
-    <ei:modificationNumber>1</ei:modificationNumber>
-    <ei:priority>1</ei:priority>
-    <ei:eiMarketContext>
-      <emix:marketContext>http://some-url</emix:marketContext>
-    </ei:eiMarketContext>
-    <ei:createdDateTime>2020-01-01T13:00:00.000Z</ei:createdDateTime>
-    <ei:eventStatus>{self.status.value}</ei:eventStatus>
-    <ei:testEvent>False</ei:testEvent>
-    <ei:vtnComment></ei:vtnComment>
-  </ei:eventDescriptor>
-  <ei:eiActivePeriod>
-    <ical:properties>
-      <ical:dtstart>
-        <ical:date-time>{format_datetime(self.start_time)}</ical:date-time>
-      </ical:dtstart>
-      <ical:duration>
-        <ical:duration>{format_duration(self.overall_duration)}</ical:duration>
-      </ical:duration>
-      <ical:tolerance>
-        <ical:tolerate>
-          <ical:startafter>P0Y0M0DT0H0M0S</ical:startafter>
-        </ical:tolerate>
-      </ical:tolerance>
-      <ei:x-eiNotification>
-        <ical:duration>P0Y0M0DT0H0M0S</ical:duration>
-      </ei:x-eiNotification>
-      <ei:x-eiRampUp>
-        <ical:duration>P0Y0M0DT0H0M0S</ical:duration>
-      </ei:x-eiRampUp>
-      <ei:x-eiRecovery>
-        <ical:duration>P0Y0M0DT0H0M0S</ical:duration>
-      </ei:x-eiRecovery>
-    </ical:properties>
-    <ical:components xsi:nil="true"/>
-  </ei:eiActivePeriod>
-  <ei:eiEventSignals>
-    <ei:eiEventSignal>
-      <strm:intervals>{intervals_xml}
-      </strm:intervals>
-      <ei:signalName>simple</ei:signalName>
-      <ei:signalType>level</ei:signalType>
-      <ei:signalID>{self.signal_uid}</ei:signalID>
-      <ei:currentValue>
-        <ei:payloadFloat>
-          <ei:value>0.0</ei:value>
-        </ei:payloadFloat>
-      </ei:currentValue>
-    </ei:eiEventSignal>
-  </ei:eiEventSignals>
-  <ei:eiTarget/>
-</ei:eiEvent>"""
-
-
-def generate():
-    xml_dir = 'xml_files/signal_level_files'
-
-    event = AdrEvent(
-        start_time=datetime(year=2020, month=3, day=18, hour=20),
-        status=AdrEventStatus.PENDING,
-        intervals=[
-            AdrInterval(2.0, timedelta(hours=2)),
-            AdrInterval(2.0, timedelta(hours=3)),
-        ],
-    )
-
-    xml_text = event.to_xml()
-
-    # with open(f"{xml_dir}/event_pending.xml", "w") as f:
-    #     f.write(xml_text)
-
-    # print(xml_text)
-    print([i.start_time for i in event.intervals])
-
-
-if __name__ == "__main__":
-    generate()
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+>
+  <eiResponse>
+    <responseCode>200</responseCode>
+    <pyld:requestID/>
+  </eiResponse>
+  <pyld:requestID>OadrDisReq092520_152645_178</pyld:requestID>
+  <ei:vtnID>{vtn_id}</ei:vtnID>
+    {evt_xml}
+</oadrDistributeEvent>
+"""
+    # print(template)
+    return etree.fromstring(template)
