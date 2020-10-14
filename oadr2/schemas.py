@@ -110,6 +110,8 @@ class EventSchema(BaseModel):
     def cancel(self, random_end=False):
         if self.status == "active" or random_end:
             self.end = schedule.random_offset(datetime.utcnow(), 0, self.cancellation_offset) if self.cancellation_offset else datetime.utcnow()
+        elif self.status == "cancelled":
+            pass
         else:
             self.end = datetime.utcnow()
         self.status = "cancelled"
@@ -142,7 +144,13 @@ class EventSchema(BaseModel):
         event_start = schedule.random_offset(event_original_start, *start_offset)
 
         event_duration = EventSchema.get_active_period_duration(evt_xml)[0]
-        ending_time = event_duration + event_start if bool(event_duration) else None
+        if bool(event_duration):
+            if event_status == "cancelled":
+                ending_time = event_start
+            else:
+                ending_time = event_duration + event_start
+        else:
+            ending_time = None
         event_test = EventSchema.get_test_event(evt_xml)
 
         return EventSchema(

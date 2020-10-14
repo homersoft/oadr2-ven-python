@@ -337,7 +337,6 @@ class EventHandler(object):
 
         return active
 
-
     def remove_events(self, evt_id_list):
         '''
         Remove a list of events from our internal member dictionary
@@ -360,6 +359,18 @@ class EventHandler(object):
             return  # optout of not existing event
 
         self.optouts.add(e_id)
+
+    def update_active_status(self, event_id):
+        '''
+        Update given event status
+
+        :param event_id:
+        :return:
+        '''
+        event = self.db.get_event(event_id)
+        if event and event.status in ["near", "far"]:
+            event.status = "active"
+            self.db.update_event(event)
 
 
 def get_current_signal_value(evt, ns_map=NS_A):

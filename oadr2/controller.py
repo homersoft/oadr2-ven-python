@@ -116,13 +116,16 @@ class EventController(object):
 
         events -- List of lxml.etree.ElementTree objects (with OpenADR 2.0 tags)
         '''
-        signal_level, _, remove_events = self._calculate_current_event_status(events)
+        signal_level, event_id, remove_events = self._calculate_current_event_status(events)
 
         if remove_events:
             # remove any events that we've detected have ended or been cancelled.
             # TODO callback for expired events??
             logging.debug("Removing completed or cancelled events: %s", remove_events)
             self.event_handler.remove_events(remove_events)
+
+        if event_id:
+            self.event_handler.update_active_status(event_id)
 
         return signal_level
 
@@ -140,10 +143,6 @@ class EventController(object):
             try:
                 if evt.status is None:
                     logging.debug(f"Ignoring event {evt.id} - no valid status")
-                    continue
-
-                if evt.test_event:
-                    logging.debug(f"Ignoring event {evt.id} - test event")
                     continue
 
                 if evt.status.lower() == "cancelled" and datetime.utcnow() > evt.end:
@@ -170,6 +169,10 @@ class EventController(object):
                         logging.warning(f"Error getting current interval for event {evt.id}({evt.mod_number}):"
                                         f"Signals: {evt.signals}")
                         continue
+
+                if evt.test_event:
+                    logging.debug(f"Ignoring event {evt.id} - test event")
+                    continue
 
                 logging.debug(
                     f'Control loop: Evt ID: {evt.id}({evt.mod_number}); '
