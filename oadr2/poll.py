@@ -172,7 +172,8 @@ class OpenADR2(base.BaseHandler):
                 event_uri,
                 cert=self.ven_certs,
                 verify=self.vtn_ca_certs,
-                data=etree.tostring(payload)
+                data=etree.tostring(payload),
+                auth=(self.__username, self.__password) if self.__username or self.__password else None
             )
         except Exception as ex:
             logging.warning("Connection failed: %s", ex)
@@ -213,7 +214,8 @@ class OpenADR2(base.BaseHandler):
             cert=self.ven_certs,
             verify=self.vtn_ca_certs,
             data=etree.tostring(payload),
-            timeout=REQUEST_TIMEOUT
+            timeout=REQUEST_TIMEOUT,
+            auth=(self.__username, self.__password) if self.__username or self.__password else None
         )
 
         logging.debug("EiEvent response: %s", resp.status_code)
