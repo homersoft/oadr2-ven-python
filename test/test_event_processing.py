@@ -540,3 +540,65 @@ def test_explicite_cancellation(tmpdir):
         active_events = event_handler.get_active_events()
 
         assert [test_event.to_obj()] == active_events
+
+    # test subsequent cancellation
+    event_handler.handle_payload(generate_payload([test_event]))
+    active_events = event_handler.get_active_events()
+
+    assert [test_event.to_obj()] == active_events
+
+
+@pytest.mark.parametrize(
+    "test_event",
+    [
+        pytest.param(
+            AdrEvent(
+                id="FooEvent",
+                start=datetime.utcnow() - timedelta(seconds=60),
+                signals=[dict(index=0, duration=timedelta(minutes=10), level=2.0)],
+                status=AdrEventStatus.ACTIVE,
+            ).to_obj(),
+            id="event active"
+        ),
+        pytest.param(
+            AdrEvent(
+                id="FooEvent",
+                start=datetime.utcnow() + timedelta(seconds=60),
+                signals=[dict(index=0, duration=timedelta(minutes=10), level=2.0)],
+                status=AdrEventStatus.PENDING,
+            ).to_obj(),
+            id="event nt started"
+        ),
+    ]
+)
+def test_event_object_cancellation(test_event):
+    with freeze_time():
+        test_event.cancel()
+        cancellation_time = datetime.utcnow()
+
+        assert test_event.status == AdrEventStatus.CANCELLED.value
+        assert test_event.end == cancellation_time
+
+    test_event.cancel()
+    assert test_event.end == cancellation_time
+
+
+def test_event_object_random_cancellation():
+    test_event = AdrEvent(
+                id="FooEvent",
+                start=datetime.utcnow() - timedelta(seconds=60),
+                signals=[dict(index=0, duration=timedelta(minutes=10), level=2.0)],
+                status=AdrEventStatus.ACTIVE, cancellation_offset=timedelta(minutes=1)
+            ).to_obj()
+
+    now = datetime.utcnow()
+    with freeze_time(now):
+        test_event.cancel()
+        cancellation_time = datetime.utcnow()
+
+        assert test_event.status == AdrEventStatus.CANCELLED.value
+        assert cancellation_time < test_event.end < cancellation_time + timedelta(minutes=1)
+
+    with freeze_time(now + timedelta(seconds=30)):
+        test_event.cancel()
+        assert cancellation_time < test_event.end < cancellation_time + timedelta(minutes=1)
