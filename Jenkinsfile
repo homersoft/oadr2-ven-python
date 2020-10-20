@@ -5,7 +5,7 @@ pipelinePythonSCA(
     pythonVersion: '3.6',
     packages: ['.'],
     runUnitTests: false,
-    runBlack: true,
+    runBlack: false,
     runIsort: false,
     installFromSetup: true,
 )
