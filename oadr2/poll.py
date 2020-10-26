@@ -164,8 +164,8 @@ class OpenADR2(base.BaseHandler):
         event_uri = self.vtn_base_uri + 'EiEvent'
         payload = self.event_handler.build_request_payload()
 
-        logging.debug('New request to: %s\n%s\n----', event_uri,
-                      etree.tostring(payload, pretty_print=True))
+        logging.debug(f'New polling request to {event_uri}:\n'
+                      f'{etree.tostring(payload, pretty_print=True).decode("utf-8")}')
 
         try:
             resp = requests.post(
@@ -176,23 +176,23 @@ class OpenADR2(base.BaseHandler):
                 auth=(self.__username, self.__password) if self.__username or self.__password else None
             )
         except Exception as ex:
-            logging.warning("Connection failed: %s", ex)
+            logging.warning(f"Connection failed: {ex}")
             return
 
         reply = None
         try:
             payload = etree.fromstring(resp.content)
-            logging.debug('Got Payload:\n%s\n----', etree.tostring(payload, pretty_print=True))
+            logging.debug(f'Got Payload:\n{etree.tostring(payload, pretty_print=True).decode("utf-8")}', )
             reply = self.event_handler.handle_payload(payload)
 
         except Exception as ex:
-            logging.warning("error parsing payload: %s", ex)
+            logging.warning(f"error parsing payload: {ex}\n"
+                            f"Response content: {resp.content}")
 
         # If we have a generated reply:
         if reply is not None:
-            logging.debug('Reply to: %s\n%s\n----',
-                          event_uri,
-                          etree.tostring(reply, pretty_print=True))
+            logging.debug(f'Reply to {event_uri}:\n'
+                          f'{etree.tostring(reply, pretty_print=True).decode("utf-8")}')
 
             # tell the control loop that events may have updated
             # (note `self.event_controller` is defined in base.BaseHandler)
