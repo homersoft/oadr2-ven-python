@@ -179,7 +179,7 @@ class EventController(object):
                     f'Interval: {current_interval.index}; Current Signal: {current_interval.level}'
                 )
 
-                if current_interval.level > highest_signal_val:
+                if current_interval.level > highest_signal_val or not current_event:
                     if not current_event or evt.priority > current_event.priority:
                         highest_signal_val = current_interval.level
                         current_event = evt
