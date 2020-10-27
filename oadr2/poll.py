@@ -1,3 +1,4 @@
+# pylint: disable=W1202, I1101
 import logging
 import threading
 import urllib.error
@@ -182,7 +183,8 @@ class OpenADR2(base.BaseHandler):
         reply = None
         try:
             payload = etree.fromstring(resp.content)
-            logging.debug(f'Got Payload:\n{etree.tostring(payload, pretty_print=True).decode("utf-8")}', )
+            logging.debug(f'Got Payload:\n'
+                          f'{etree.tostring(payload, pretty_print=True).decode("utf-8")}')
             reply = self.event_handler.handle_payload(payload)
 
         except Exception as ex:

@@ -1,6 +1,7 @@
 # Event Handler class.
 # --------
 # Requires the python libXML wrapper "lxml" to function properly
+# pylint: disable=W1202
 __author__ = "Thom Nichols <tnichols@enernoc.com>, Ben Summerton <bsummerton@enernoc.com>"
 
 import logging
