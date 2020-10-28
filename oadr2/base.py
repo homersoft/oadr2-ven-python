@@ -2,10 +2,9 @@
 
 __author__ = 'Benjamin N. Summerton <bsummerton@enernoc.com>'
 
-import logging
 import threading
 
-from oadr2 import controller, event
+from oadr2 import controller, event, logger
 
 
 class BaseHandler(object):
@@ -39,7 +38,7 @@ class BaseHandler(object):
         self._exit = threading.Event()
         self._exit.clear()
 
-        logging.info('Created base handler.')
+        logger.info('Created base handler.')
 
 
     def exit(self):
@@ -50,4 +49,4 @@ class BaseHandler(object):
         self.event_controller.exit()    # Stop the event controller
         self._exit.set()
 
-        logging.info('Shutdown base handler.')
+        logger.info('Shutdown base handler.')

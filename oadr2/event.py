@@ -4,14 +4,13 @@
 # pylint: disable=W1202
 __author__ = "Thom Nichols <tnichols@enernoc.com>, Ben Summerton <bsummerton@enernoc.com>"
 
-import logging
 import uuid
 from typing import List
 
 from lxml import etree
 from lxml.builder import ElementMaker
 
-from oadr2 import eventdb
+from oadr2 import eventdb, logger
 from oadr2.schemas import (NS_A, NS_B, OADR_PROFILE_20A, OADR_PROFILE_20B,
                            EventSchema)
 
@@ -106,7 +105,7 @@ class EventHandler(object):
         # If we got a payload from an VTN that is not in our list,
         # send it a 400 message and return
         if self.vtn_ids and (vtnID not in self.vtn_ids):
-            logging.warning("Unexpected VTN ID: %s, expected one of %r", vtnID, self.vtn_ids)
+            logger.warning("Unexpected VTN ID: %s, expected one of %r", vtnID, self.vtn_ids)
             return self.build_error_response(requestID, '400', 'Unknown vtnID: %s' % vtnID)
 
         # Loop through all of the oadr:oadrEvent 's in the payload
@@ -116,7 +115,7 @@ class EventHandler(object):
             new_event = EventSchema.from_xml(evt)
             current_signal_val = get_current_signal_value(evt, self.ns_map)
 
-            logging.debug(
+            logger.debug(
                 f'------ EVENT ID: {new_event.id}({new_event.mod_number}); '
                 f'Status: {new_event.status}; Current Signal: {current_signal_val}'
             )
@@ -131,7 +130,7 @@ class EventHandler(object):
             status = '200'
 
             if old_event and (old_event.mod_number > new_event.mod_number):
-                logging.warning(
+                logger.warning(
                     f"Got a smaller modification number "
                     f"({new_event.mod_number} < {old_event.mod_number}) for event {new_event.id}"
                 )
@@ -139,22 +138,22 @@ class EventHandler(object):
                 opt = 'optOut'
 
             if not self.check_target_info(new_event):
-                logging.info(f"Opting out of event {new_event.id} - no target match")
+                logger.info(f"Opting out of event {new_event.id} - no target match")
                 status = '403'
                 opt = 'optOut'
 
             if new_event.id in self.optouts:
-                logging.info(f"Opting out of event {new_event.id} - user opted out")
+                logger.info(f"Opting out of event {new_event.id} - user opted out")
                 status = '200'
                 opt = 'optOut'
 
             if not new_event.signals:
-                logging.info(f"Opting out of event {new_event.id} - no simple signal")
+                logger.info(f"Opting out of event {new_event.id} - no simple signal")
                 opt = 'optOut'
                 status = '403'
 
             if self.market_contexts and (new_event.market_context not in self.market_contexts):
-                logging.info(
+                logger.info(
                     f"Opting out of event {new_event.id}:"
                     f"market context {new_event.market_context} does not match"
                 )
@@ -185,12 +184,12 @@ class EventHandler(object):
         # Find implicitly cancelled events and get rid of them
         for evt in self.get_active_events():
             if evt.id not in all_events:
-                logging.debug(f'Mark event {evt.id} as cancelled')
+                logger.debug(f'Mark event {evt.id} as cancelled')
                 evt.cancel()
                 self.db.update_event(evt)
 
         # If we have any in the reply_events list, build some payloads
-        logging.debug("Replying for events %r", reply_events)
+        logger.debug("Replying for events %r", reply_events)
         reply = None
         if reply_events:
             reply = self.build_created_payload(reply_events)
@@ -257,7 +256,7 @@ class EventHandler(object):
                 ei.eventResponses(*list(responses(events))),
                 ei.venID(self.ven_id)))
 
-        logging.debug("Created payload:\n%s",
+        logger.debug("Created payload:\n%s",
                       etree.tostring(payload, pretty_print=True))
         return payload
 
@@ -283,7 +282,7 @@ class EventHandler(object):
                     pyld.requestID(request_id)),
                 ei.venID(self.ven_id)))
 
-        logging.debug("Error payload:\n%s",
+        logger.debug("Error payload:\n%s",
                       etree.tostring(payload, pretty_print=True))
         return payload
 

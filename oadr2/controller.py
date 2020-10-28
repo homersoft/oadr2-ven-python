@@ -1,8 +1,9 @@
-import logging
+# pylint: disable=W1202
 import threading
 from datetime import datetime
 from typing import List
 
+from oadr2 import logger
 from oadr2.schemas import EventSchema
 
 CONTROL_LOOP_INTERVAL = 30   # update control state every X second
@@ -91,23 +92,23 @@ class EventController(object):
         '''
         while not self._exit.is_set():
             try:
-                logging.debug("Updating control states...")
+                logger.debug("Updating control states...")
                 events = self.event_handler.get_active_events()
 
                 new_signal_level = self._update_control(events)
-                logging.debug("Highest signal level is: %f", new_signal_level)
+                logger.debug("Highest signal level is: %f", new_signal_level)
 
                 changed = self._update_signal_level(new_signal_level)
                 if changed:
-                    logging.debug("Updated current signal level!")
+                    logger.debug("Updated current signal level!")
 
             except Exception as ex:
-                logging.exception("Control loop error: %s", ex)
+                logger.exception("Control loop error: %s", ex)
 
             self._control_loop_signal.wait(CONTROL_LOOP_INTERVAL)
             self._control_loop_signal.clear() # in case it was triggered by a poll update
 
-        logging.info("Control loop exiting.")
+        logger.info("Control loop exiting.")
 
     def _update_control(self, events):
         '''
@@ -121,7 +122,7 @@ class EventController(object):
         if remove_events:
             # remove any events that we've detected have ended or been cancelled.
             # TODO callback for expired events??
-            logging.debug("Removing completed or cancelled events: %s", remove_events)
+            logger.debug("Removing completed or cancelled events: %s", remove_events)
             self.event_handler.remove_events(remove_events)
 
         if event_id:
@@ -142,39 +143,39 @@ class EventController(object):
         for evt in events:
             try:
                 if evt.status is None:
-                    logging.debug(f"Ignoring event {evt.id} - no valid status")
+                    logger.debug(f"Ignoring event {evt.id} - no valid status")
                     continue
 
                 if evt.status.lower() == "cancelled" and datetime.utcnow() > evt.end:
-                    logging.debug(f"Event {evt.id}({evt.mod_number}) has been cancelled")
+                    logger.debug(f"Event {evt.id}({evt.mod_number}) has been cancelled")
                     remove_events.append(evt.id)
                     continue
 
                 if not evt.signals:
-                    logging.debug(f"Ignoring event {evt.id} - no valid signals")
+                    logger.debug(f"Ignoring event {evt.id} - no valid signals")
                     continue
 
                 current_interval = evt.get_current_interval(now=now)
                 if current_interval is None:
                     if evt.end < now:
-                        logging.debug(f"Event {evt.id}({evt.mod_number}) has ended")
+                        logger.debug(f"Event {evt.id}({evt.mod_number}) has ended")
                         remove_events.append(evt.id)
                         continue
 
                     elif evt.start > now:
-                        logging.debug(f"Event {evt.id}({evt.mod_number}) has not started yet.")
+                        logger.debug(f"Event {evt.id}({evt.mod_number}) has not started yet.")
                         continue
 
                     else:
-                        logging.warning(f"Error getting current interval for event {evt.id}({evt.mod_number}):"
+                        logger.warning(f"Error getting current interval for event {evt.id}({evt.mod_number}):"
                                         f"Signals: {evt.signals}")
                         continue
 
                 if evt.test_event:
-                    logging.debug(f"Ignoring event {evt.id} - test event")
+                    logger.debug(f"Ignoring event {evt.id} - test event")
                     continue
 
-                logging.debug(
+                logger.debug(
                     f'Control loop: Evt ID: {evt.id}({evt.mod_number}); '
                     f'Interval: {current_interval.index}; Current Signal: {current_interval.level}'
                 )
@@ -185,7 +186,7 @@ class EventController(object):
                         current_event = evt
 
             except Exception as ex:
-                logging.exception(f"Error parsing event: {evt.id}: {ex}")
+                logger.exception(f"Error parsing event: {evt.id}: {ex}")
 
         return highest_signal_val, current_event.id if current_event else None, remove_events
 
@@ -212,7 +213,7 @@ class EventController(object):
             self.signal_changed_callback(self.current_signal_level, signal_level)
 
         except Exception as ex:
-            logging.exception("Error from callback! %s", ex)
+            logger.exception("Error from callback! %s", ex)
 
         self.current_signal_level = signal_level
         return True
@@ -221,7 +222,7 @@ class EventController(object):
         '''
         The default callback just logs a message.
         '''
-        logging.debug(f"Signal level changed from {old_level} to {new_level}")
+        logger.debug(f"Signal level changed from {old_level} to {new_level}")
 
     def exit(self):
         '''
