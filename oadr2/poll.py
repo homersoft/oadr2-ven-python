@@ -1,5 +1,4 @@
 # pylint: disable=W1202, I1101
-import logging
 import threading
 import urllib.error
 import urllib.parse
@@ -9,7 +8,7 @@ from random import uniform
 import requests
 from lxml import etree
 
-from oadr2 import base
+from oadr2 import base, logger
 
 # HTTP parameters:
 REQUEST_TIMEOUT = 5  # HTTP request timeout
@@ -69,7 +68,7 @@ class OpenADR2(base.BaseHandler):
             self.vtn_poll_interval = int(vtn_poll_interval)
             assert self.vtn_poll_interval >= MINIMUM_POLL_INTERVAL
         except ValueError:
-            logging.warning('Invalid poll interval: %s', self.vtn_poll_interval)
+            logger.warning('Invalid poll interval: %s', self.vtn_poll_interval)
             self.vtn_poll_interval = DEFAULT_VTN_POLL_INTERVAL
 
         # Security & Authentication related
@@ -83,7 +82,7 @@ class OpenADR2(base.BaseHandler):
         if start_thread:  # this is left for backward compatibility
             self.start()
 
-        logging.info(" +++++++++++++++ OADR2 module started ++++++++++++++")
+        logger.info("+++++++++++++++ OADR2 module started ++++++++++++++")
 
     def start(self):
         '''
@@ -93,7 +92,7 @@ class OpenADR2(base.BaseHandler):
         '''
 
         if self.poll_thread and self.poll_thread.is_alive():
-            logging.warning("Thread is already running")
+            logger.warning("Thread is already running")
             return
 
         self.poll_thread = threading.Thread(
@@ -103,7 +102,7 @@ class OpenADR2(base.BaseHandler):
         self._exit.clear()
 
         self.poll_thread.start()
-        logging.info("Polling thread started")
+        logger.info("Polling thread started")
 
     def stop(self):
         '''
@@ -115,7 +114,7 @@ class OpenADR2(base.BaseHandler):
 
         self._exit.set()
 
-        logging.info("Polling thread stopped")
+        logger.info("Polling thread stopped")
 
     def exit(self):
         '''
@@ -137,13 +136,13 @@ class OpenADR2(base.BaseHandler):
                 self.query_vtn()
 
             except urllib.error.HTTPError as ex:  # 4xx or 5xx HTTP response:
-                logging.warning("HTTP error: %s\n%s", ex, ex.read())
+                logger.warning("HTTP error: %s\n%s", ex, ex.read())
 
             except urllib.error.URLError as ex:  # network error.
-                logging.debug("Network error: %s", ex)
+                logger.debug("Network error: %s", ex)
 
             except Exception as ex:
-                logging.exception("Error in OADR2 poll thread: %s", ex)
+                logger.exception("Error in OADR2 poll thread: %s", ex)
 
             self._exit.wait(
                 uniform(
@@ -151,7 +150,7 @@ class OpenADR2(base.BaseHandler):
                     self.vtn_poll_interval*(1+POLLING_JITTER)
                 )
             )
-        logging.info(" +++++++++++++++ OADR2 polling thread has exited.")
+        logger.info("+++++++++++++++ OADR2 polling thread has exited.")
 
     def query_vtn(self):
         '''
@@ -159,13 +158,13 @@ class OpenADR2(base.BaseHandler):
         '''
 
         if not self.vtn_base_uri:
-            logging.warning("VTN base URI is invalid: %s", self.vtn_base_uri)
+            logger.warning("VTN base URI is invalid: %s", self.vtn_base_uri)
             return
 
         event_uri = self.vtn_base_uri + 'EiEvent'
         payload = self.event_handler.build_request_payload()
 
-        logging.debug(f'New polling request to {event_uri}:\n'
+        logger.debug(f'New polling request to {event_uri}:\n'
                       f'{etree.tostring(payload, pretty_print=True).decode("utf-8")}')
 
         try:
@@ -177,23 +176,23 @@ class OpenADR2(base.BaseHandler):
                 auth=(self.__username, self.__password) if self.__username or self.__password else None
             )
         except Exception as ex:
-            logging.warning(f"Connection failed: {ex}")
+            logger.warning(f"Connection failed: {ex}")
             return
 
         reply = None
         try:
             payload = etree.fromstring(resp.content)
-            logging.debug(f'Got Payload:\n'
+            logger.debug(f'Got Payload:\n'
                           f'{etree.tostring(payload, pretty_print=True).decode("utf-8")}')
             reply = self.event_handler.handle_payload(payload)
 
         except Exception as ex:
-            logging.warning(f"error parsing payload: {ex}\n"
+            logger.warning(f"error parsing payload: {ex}\n"
                             f"Response content: {resp.content}")
 
         # If we have a generated reply:
         if reply is not None:
-            logging.debug(f'Reply to {event_uri}:\n'
+            logger.debug(f'Reply to {event_uri}:\n'
                           f'{etree.tostring(reply, pretty_print=True).decode("utf-8")}')
 
             # tell the control loop that events may have updated
@@ -220,4 +219,4 @@ class OpenADR2(base.BaseHandler):
             auth=(self.__username, self.__password) if self.__username or self.__password else None
         )
 
-        logging.debug("EiEvent response: %s", resp.status_code)
+        logger.debug("EiEvent response: %s", resp.status_code)
