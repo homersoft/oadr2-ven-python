@@ -355,7 +355,7 @@ class EventHandler(object):
         :return:
         '''
 
-        if e_id not in self.db.get_active_events():
+        if e_id not in [event.id for event in self.db.get_active_events()]:
             return  # optout of not existing event
 
         self.optouts.add(e_id)
