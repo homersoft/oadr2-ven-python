@@ -105,7 +105,7 @@ class EventController(object):
             except Exception as ex:
                 logger.exception("Control loop error: %s", ex)
 
-            self._control_loop_signal.wait(CONTROL_LOOP_INTERVAL)
+            self._control_loop_signal.wait(self.control_loop_interval)
             self._control_loop_signal.clear() # in case it was triggered by a poll update
 
         logger.info("Control loop exiting.")
