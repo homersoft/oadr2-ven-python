@@ -5,7 +5,7 @@ from setuptools import find_packages, setup
 
 setup(
     name = 'oadr2-ven',
-    version = '1.0.0',
+    version = '1.0.1',
     description = 'OpenADR 2.0a VEN for Python',
     author = 'EnerNOC Advanced Technology',
     author_email = 'tnichols@enernoc.com',
